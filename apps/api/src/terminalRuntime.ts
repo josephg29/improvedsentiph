@@ -791,6 +791,10 @@ export const createTerminalRuntime = ({
       return sessionRuntime.writeInput(terminalId, data);
     },
 
+    getScrollback(terminalId: string): string | null {
+      return sessionRuntime.getScrollback(terminalId);
+    },
+
     resizeTerminal(terminalId: string, cols: number, rows: number): boolean {
       return sessionRuntime.resizeSession(terminalId, cols, rows);
     },

@@ -1,9 +1,6 @@
-import { join } from "node:path";
-import { readDeckTentacles } from "../deck/readDeckTentacles";
-import { resolvePrompt } from "../prompts";
 import {
+  type AgentWorkspaceMode,
   RuntimeInputError,
-  type TentacleWorkspaceMode,
   type TerminalAgentProvider,
   type TerminalNameOrigin,
 } from "../terminalRuntime";
@@ -20,27 +17,6 @@ import {
   parseTerminalNameOrigin,
   parseTerminalWorkspaceMode,
 } from "./terminalParsers";
-
-const buildTentacleInitialPrompt = (
-  promptsDir: string,
-  workspaceCwd: string,
-  projectStateDir: string,
-  tentacleId: string,
-): Promise<string | undefined> => {
-  const tentacle = readDeckTentacles(workspaceCwd, projectStateDir).find(
-    (entry) => entry.tentacleId === tentacleId,
-  );
-  if (!tentacle) {
-    return Promise.resolve(undefined);
-  }
-
-  const tentacleFolderPath = join(".octogent", "tentacles", tentacleId);
-  return resolvePrompt(promptsDir, "tentacle-context-init", {
-    tentacleName: tentacle.displayName,
-    tentacleId,
-    tentacleContextPath: tentacleFolderPath,
-  });
-};
 
 export const handleTerminalSnapshotsRoute: ApiRouteHandler = async (
   { request, response, requestUrl, corsOrigin },
@@ -62,7 +38,7 @@ export const handleTerminalSnapshotsRoute: ApiRouteHandler = async (
 
 export const handleTerminalsCollectionRoute: ApiRouteHandler = async (
   { request, response, requestUrl, corsOrigin },
-  { runtime, workspaceCwd, projectStateDir, promptsDir, userPromptsDir, getApiPort },
+  { runtime },
 ) => {
   if (requestUrl.pathname !== "/api/terminals") {
     return false;
@@ -105,10 +81,10 @@ export const handleTerminalsCollectionRoute: ApiRouteHandler = async (
   try {
     const createTerminalInput: {
       terminalId?: string;
-      tentacleId?: string;
+      agentId?: string;
       worktreeId?: string;
-      tentacleName?: string;
-      workspaceMode: TentacleWorkspaceMode;
+      agentName?: string;
+      workspaceMode: AgentWorkspaceMode;
       agentProvider?: TerminalAgentProvider;
       nameOrigin?: TerminalNameOrigin;
       initialPrompt?: string;
@@ -119,7 +95,7 @@ export const handleTerminalsCollectionRoute: ApiRouteHandler = async (
       workspaceMode: workspaceModeResult.workspaceMode,
     };
     if (nameResult.name !== undefined) {
-      createTerminalInput.tentacleName = nameResult.name;
+      createTerminalInput.agentName = nameResult.name;
     }
     if (agentProviderResult.agentProvider !== undefined) {
       createTerminalInput.agentProvider = agentProviderResult.agentProvider;
@@ -137,10 +113,10 @@ export const handleTerminalsCollectionRoute: ApiRouteHandler = async (
     }
     if (
       bodyPayload &&
-      typeof bodyPayload.tentacleId === "string" &&
-      bodyPayload.tentacleId.trim().length > 0
+      typeof bodyPayload.agentId === "string" &&
+      bodyPayload.agentId.trim().length > 0
     ) {
-      createTerminalInput.tentacleId = bodyPayload.tentacleId.trim();
+      createTerminalInput.agentId = bodyPayload.agentId.trim();
     }
     if (
       bodyPayload &&
@@ -164,80 +140,13 @@ export const handleTerminalsCollectionRoute: ApiRouteHandler = async (
       createTerminalInput.worktreeId = bodyPayload.worktreeId.trim();
     }
 
-    // Support prompt resolution via template name + variables, or a raw string.
+    // Optional raw initial prompt to seed the agent.
     if (
-      bodyPayload &&
-      typeof bodyPayload.promptTemplate === "string" &&
-      bodyPayload.promptTemplate.trim().length > 0
-    ) {
-      const templateName = bodyPayload.promptTemplate.trim();
-      const templateVars: Record<string, string> =
-        bodyPayload.promptVariables != null &&
-        typeof bodyPayload.promptVariables === "object" &&
-        !Array.isArray(bodyPayload.promptVariables)
-          ? Object.fromEntries(
-              Object.entries(bodyPayload.promptVariables as Record<string, unknown>)
-                .filter(([, v]) => typeof v === "string")
-                .map(([k, v]) => [k, v as string]),
-            )
-          : {};
-
-      // Auto-inject terminalId variable so callers don't have to guess it.
-      // The runtime hasn't allocated the ID yet, so we use the tentacle name
-      // when provided (sandbox always passes its name).
-      if (!templateVars.terminalId && createTerminalInput.tentacleName) {
-        templateVars.terminalId = createTerminalInput.tentacleName;
-      }
-
-      // Auto-inject apiPort so prompt templates can reference the local API.
-      if (!templateVars.apiPort) {
-        templateVars.apiPort = getApiPort();
-      }
-
-      // Auto-inject userPromptsDir so prompt templates know where to save user prompts.
-      if (!templateVars.userPromptsDir) {
-        templateVars.userPromptsDir = userPromptsDir;
-      }
-
-      // Auto-inject existingTerminals summary so planner-style prompts have context.
-      if (!templateVars.existingTerminals) {
-        const deckTentacles = readDeckTentacles(workspaceCwd, projectStateDir);
-        if (deckTentacles.length > 0) {
-          const listing = deckTentacles
-            .map(
-              (t) =>
-                `- **${t.displayName}** (\`${t.tentacleId}\`): ${t.description || "(no description)"}`,
-            )
-            .join("\n");
-          templateVars.existingTerminals = `## Existing Terminals\n\nThe following departments already exist:\n\n${listing}\n\nConsider these when proposing new departments — avoid duplicates and note any gaps.`;
-        } else {
-          templateVars.existingTerminals =
-            "## Existing Terminals\n\nNo department terminals exist yet. You are starting from scratch.";
-        }
-      }
-
-      const resolved = await resolvePrompt(promptsDir, templateName, templateVars);
-      if (resolved !== undefined) {
-        createTerminalInput.initialPrompt = resolved;
-      }
-    } else if (
       bodyPayload &&
       typeof bodyPayload.initialPrompt === "string" &&
       bodyPayload.initialPrompt.trim().length > 0
     ) {
       createTerminalInput.initialPrompt = bodyPayload.initialPrompt.trim();
-    }
-
-    if (!createTerminalInput.initialPrompt && createTerminalInput.tentacleId) {
-      const defaultTentaclePrompt = await buildTentacleInitialPrompt(
-        promptsDir,
-        workspaceCwd,
-        projectStateDir,
-        createTerminalInput.tentacleId,
-      );
-      if (defaultTentaclePrompt) {
-        createTerminalInput.initialInputDraft = defaultTentaclePrompt;
-      }
     }
 
     const snapshot = runtime.createTerminal(createTerminalInput);
@@ -339,6 +248,74 @@ export const handleTerminalActionRoute: ApiRouteHandler = async (
   }
 
   writeJson(response, 200, snapshot, corsOrigin);
+  return true;
+};
+
+const TERMINAL_INPUT_PATH_PATTERN = /^\/api\/terminals\/([^/]+)\/input$/;
+const TERMINAL_SCROLLBACK_PATH_PATTERN = /^\/api\/terminals\/([^/]+)\/scrollback$/;
+
+// Used by the orchestration MCP server (send_prompt): feeds input into a child
+// terminal's PTY over HTTP.
+export const handleTerminalInputRoute: ApiRouteHandler = async (
+  { request, response, requestUrl, corsOrigin },
+  { runtime },
+) => {
+  const match = requestUrl.pathname.match(TERMINAL_INPUT_PATH_PATTERN);
+  if (!match) {
+    return false;
+  }
+
+  if (request.method !== "POST") {
+    writeMethodNotAllowed(response, corsOrigin);
+    return true;
+  }
+
+  const bodyReadResult = await readJsonBodyOrWriteError(request, response, corsOrigin);
+  if (!bodyReadResult.ok) {
+    return true;
+  }
+
+  const payload = bodyReadResult.payload as Record<string, unknown> | null;
+  const data = payload && typeof payload.data === "string" ? payload.data : null;
+  if (data === null) {
+    writeJson(response, 400, { error: "A string `data` field is required." }, corsOrigin);
+    return true;
+  }
+
+  const terminalId = decodeURIComponent(match[1] ?? "");
+  if (!runtime.writeInput(terminalId, data)) {
+    writeJson(response, 404, { error: "Terminal not found or not active." }, corsOrigin);
+    return true;
+  }
+
+  writeJson(response, 200, { ok: true }, corsOrigin);
+  return true;
+};
+
+// Used by the orchestration MCP server (get_terminal_output): reads a child
+// terminal's current rendered scrollback.
+export const handleTerminalScrollbackRoute: ApiRouteHandler = async (
+  { request, response, requestUrl, corsOrigin },
+  { runtime },
+) => {
+  const match = requestUrl.pathname.match(TERMINAL_SCROLLBACK_PATH_PATTERN);
+  if (!match) {
+    return false;
+  }
+
+  if (request.method !== "GET") {
+    writeMethodNotAllowed(response, corsOrigin);
+    return true;
+  }
+
+  const terminalId = decodeURIComponent(match[1] ?? "");
+  const scrollback = runtime.getScrollback(terminalId);
+  if (scrollback === null) {
+    writeJson(response, 404, { error: "Terminal not found or has no output yet." }, corsOrigin);
+    return true;
+  }
+
+  writeJson(response, 200, { scrollback }, corsOrigin);
   return true;
 };
 

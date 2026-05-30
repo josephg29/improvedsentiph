@@ -38,9 +38,9 @@ type CreateSessionRuntimeOptions = {
   sessions: Map<string, TerminalSession>;
   resolveTerminalSession?: (terminalId: string) => {
     sessionId: string;
-    tentacleId: string;
+    agentId: string;
   } | null;
-  getTentacleWorkspaceCwd: (tentacleId: string) => string;
+  getAgentWorkspaceCwd: (agentId: string) => string;
   isDebugPtyLogsEnabled: boolean;
   ptyLogDir: string;
   transcriptDirectoryPath: string;
@@ -63,7 +63,7 @@ export const createSessionRuntime = ({
   terminals,
   sessions,
   resolveTerminalSession,
-  getTentacleWorkspaceCwd,
+  getAgentWorkspaceCwd,
   isDebugPtyLogsEnabled,
   ptyLogDir,
   transcriptDirectoryPath,
@@ -147,7 +147,7 @@ export const createSessionRuntime = ({
       ...event,
       eventId: `${sessionId}:${nextEventCount}`,
       sessionId,
-      tentacleId: session.tentacleId,
+      agentId: session.agentId,
     } as ConversationTranscriptEvent;
     session.transcriptLog.write(`${JSON.stringify(payload)}\n`);
   };
@@ -200,7 +200,7 @@ export const createSessionRuntime = ({
       const terminal = terminals.get(terminalId);
       return {
         sessionId: terminalId,
-        tentacleId: terminal?.tentacleId ?? terminalId,
+        agentId: terminal?.agentId ?? terminalId,
       };
     });
 
@@ -316,7 +316,7 @@ export const createSessionRuntime = ({
   const teardownSession = (
     sessionId: string,
     session: TerminalSession,
-    event: Omit<SessionEndTranscriptEvent, "eventId" | "sessionId" | "tentacleId">,
+    event: Omit<SessionEndTranscriptEvent, "eventId" | "sessionId" | "agentId">,
     options: { killPty: boolean; killSignal?: string },
   ): void => {
     if (session.isClosed) {
@@ -524,7 +524,7 @@ export const createSessionRuntime = ({
     }
   };
 
-  const ensureSession = (sessionId: string, tentacleId: string) => {
+  const ensureSession = (sessionId: string, agentId: string) => {
     const existingSession = sessions.get(sessionId);
     if (existingSession) {
       return existingSession;
@@ -532,15 +532,15 @@ export const createSessionRuntime = ({
 
     if (sessions.size >= sessionLimit) {
       throw new Error(
-        `Terminal session limit reached (${sessionLimit}). Close an existing terminal session or increase OCTOGENT_MAX_TERMINAL_SESSIONS.`,
+        `Terminal session limit reached (${sessionLimit}). Close an existing terminal session or increase SENTIPH_MAX_TERMINAL_SESSIONS.`,
       );
     }
 
     const terminalRecord = terminals.get(sessionId);
 
-    const tentacleCwd = getTentacleWorkspaceCwd(tentacleId);
-    if (!existsSync(tentacleCwd)) {
-      throw new Error(`Terminal working directory does not exist: ${tentacleCwd}`);
+    const agentCwd = getAgentWorkspaceCwd(agentId);
+    if (!existsSync(agentCwd)) {
+      throw new Error(`Terminal working directory does not exist: ${agentCwd}`);
     }
 
     ensureNodePtySpawnHelperExecutable();
@@ -551,8 +551,8 @@ export const createSessionRuntime = ({
       pty = spawn(shellLaunch.command, shellLaunch.args, {
         cols: DEFAULT_PTY_COLS,
         rows: DEFAULT_PTY_ROWS,
-        cwd: tentacleCwd,
-        env: createShellEnvironment({ octogentSessionId: sessionId }),
+        cwd: agentCwd,
+        env: createShellEnvironment({ sentiphSessionId: sessionId }),
         name: "xterm-256color",
       });
     } catch (error) {
@@ -566,7 +566,7 @@ export const createSessionRuntime = ({
     const transcriptLog = createTranscriptLog(sessionId);
     const session: TerminalSession = {
       terminalId: sessionId,
-      tentacleId,
+      agentId,
       pty,
       clients: new Set(),
       directListeners: new Set(),
@@ -587,7 +587,7 @@ export const createSessionRuntime = ({
     }
     session.transcriptLog = transcriptLog;
 
-    appendDebugLog(session, `session-start session=${sessionId} tentacle=${tentacleId}`);
+    appendDebugLog(session, `session-start session=${sessionId} agent=${agentId}`);
     const processId =
       typeof pty.pid === "number" && Number.isInteger(pty.pid) && pty.pid > 0 ? pty.pid : undefined;
     onSessionStart?.(sessionId, {
@@ -669,12 +669,12 @@ export const createSessionRuntime = ({
     if (!resolvedSession) {
       return false;
     }
-    const { sessionId, tentacleId } = resolvedSession;
+    const { sessionId, agentId } = resolvedSession;
 
     websocketServer.handleUpgrade(request, socket, head, (websocket: WebSocket) => {
       let session: TerminalSession;
       try {
-        session = ensureSession(sessionId, tentacleId);
+        session = ensureSession(sessionId, agentId);
       } catch (error) {
         sendMessage(websocket, {
           type: "output",
@@ -770,11 +770,11 @@ export const createSessionRuntime = ({
     if (!resolvedSession) {
       return null;
     }
-    const { sessionId, tentacleId } = resolvedSession;
+    const { sessionId, agentId } = resolvedSession;
 
     let session: TerminalSession;
     try {
-      session = ensureSession(sessionId, tentacleId);
+      session = ensureSession(sessionId, agentId);
     } catch {
       return null;
     }
@@ -805,10 +805,10 @@ export const createSessionRuntime = ({
       return false;
     }
 
-    const { sessionId, tentacleId } = resolvedSession;
+    const { sessionId, agentId } = resolvedSession;
     let session: TerminalSession;
     try {
-      session = ensureSession(sessionId, tentacleId);
+      session = ensureSession(sessionId, agentId);
     } catch {
       return false;
     }
@@ -829,6 +829,14 @@ export const createSessionRuntime = ({
       emitStateIfChanged(session, terminalId, session.stateTracker.observeSubmit(Date.now()));
     }
     return true;
+  };
+
+  const getScrollback = (terminalId: string): string | null => {
+    const session = sessions.get(terminalId);
+    if (!session) {
+      return null;
+    }
+    return session.scrollbackChunks.join("");
   };
 
   const resizeSession = (terminalId: string, cols: number, rows: number): boolean => {
@@ -868,6 +876,7 @@ export const createSessionRuntime = ({
     connectDirect,
     startSession,
     writeInput,
+    getScrollback,
     resizeSession,
     releaseSessionKeepAlive,
     close,
