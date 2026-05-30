@@ -77,6 +77,7 @@ export interface Run {
   createdAt: string;
   updatedAt: string;
   result?: RunResult; // set on terminal status
+  failureReason?: string; // why a run failed/cancelled (e.g. "api_restart", a worker error)
 }
 
 export interface RunResult {

@@ -1,0 +1,179 @@
+/**
+ * The conductor — thin wiring that holds no decision logic itself.
+ *
+ * It asks the pure router (`nextAction`) what to do next, runs the chosen stage
+ * as one or more headless workers, appends their outcomes, and persists/streams
+ * after every step. Control flow lives in `packages/core`, not here. The worker
+ * runner and clock are injected so the loop is exercised against scripted stage
+ * results without spawning anything (spec §15).
+ */
+
+import {
+  type IssueFinding,
+  type Recipe,
+  type RecipeStage,
+  type Run,
+  type RunStatus,
+  type WorkerOutcome,
+  converge,
+  nextAction,
+} from "@sentiph/core";
+
+import type { WorkerRun } from "./headlessWorker";
+
+export type RunStageFn = (
+  stage: RecipeStage,
+  run: Run,
+  signal: AbortSignal,
+) => Promise<WorkerOutcome[]>;
+
+export interface PipelineHooks {
+  /** Persist + broadcast the latest run state after every transition. */
+  onUpdate: (run: Run) => void;
+  now: () => string;
+  signal: AbortSignal;
+}
+
+export const statusForStage = (stage: RecipeStage): RunStatus => {
+  switch (stage.role) {
+    case "build":
+      return "building";
+    case "fix":
+      return "fixing";
+    default:
+      return "checking";
+  }
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === "object" && !Array.isArray(value);
+
+const readIssues = (result: unknown): IssueFinding[] => {
+  if (!isRecord(result) || !Array.isArray(result.issues)) {
+    return [];
+  }
+  const issues: IssueFinding[] = [];
+  for (const raw of result.issues) {
+    if (!isRecord(raw) || typeof raw.location !== "string" || typeof raw.problem !== "string") {
+      continue;
+    }
+    if (raw.severity !== "low" && raw.severity !== "medium" && raw.severity !== "high") {
+      continue;
+    }
+    const finding: IssueFinding = {
+      severity: raw.severity,
+      location: raw.location,
+      problem: raw.problem,
+    };
+    if (typeof raw.suggestion === "string") {
+      finding.suggestion = raw.suggestion;
+    }
+    issues.push(finding);
+  }
+  return issues;
+};
+
+/** Issues from the most recent (trailing contiguous) check round — what a fix must address. */
+export const collectOutstandingIssues = (run: Run, checkStageId: string): IssueFinding[] => {
+  const round: WorkerOutcome[] = [];
+  for (let index = run.outcomes.length - 1; index >= 0; index -= 1) {
+    const outcome = run.outcomes[index];
+    if (!outcome) {
+      continue;
+    }
+    if (outcome.stageId === checkStageId) {
+      round.unshift(outcome);
+    } else if (round.length > 0) {
+      break;
+    }
+  }
+  return round.flatMap((outcome) => readIssues(outcome.result));
+};
+
+const formatIssues = (issues: IssueFinding[]): string =>
+  issues
+    .map((issue) => {
+      const head = `- [${issue.severity}] ${issue.location}: ${issue.problem}`;
+      return issue.suggestion ? `${head} (suggestion: ${issue.suggestion})` : head;
+    })
+    .join("\n");
+
+/** Build the worker prompt for a stage. Pure. */
+export const renderStagePrompt = (recipe: Recipe, stage: RecipeStage, run: Run): string => {
+  if (stage.role === "build") {
+    return run.task;
+  }
+  if (stage.role === "check") {
+    return `Inspect the change made for the following task and return your verdict.\n\nTask:\n${run.task}`;
+  }
+  const checkStage = recipe.stages.find((candidate) => candidate.role === "check");
+  const issues = checkStage ? collectOutstandingIssues(run, checkStage.id) : [];
+  const issueText = issues.length > 0 ? formatIssues(issues) : "(no specific issues were recorded)";
+  return `Resolve the issues found while reviewing the following task.\n\nTask:\n${run.task}\n\nIssues to fix:\n${issueText}`;
+};
+
+/**
+ * Drive a run to a terminal status. Deterministic given the same `runStage`
+ * results — the router decides every branch; the conductor only executes.
+ */
+export const runPipeline = async (
+  recipe: Recipe,
+  initialRun: Run,
+  runStage: RunStageFn,
+  hooks: PipelineHooks,
+): Promise<Run> => {
+  let run = initialRun;
+
+  const update = (next: Run) => {
+    run = next;
+    hooks.onUpdate(run);
+  };
+
+  const finishCancelled = (): Run => {
+    const base = converge(recipe, run);
+    update({
+      ...run,
+      status: "cancelled",
+      failureReason: "cancelled",
+      result: { ...base, status: "cancelled" },
+      updatedAt: hooks.now(),
+    });
+    return run;
+  };
+
+  if (hooks.signal.aborted) {
+    return finishCancelled();
+  }
+
+  while (true) {
+    const action = nextAction(recipe, run);
+    if (action.kind === "done") {
+      const failingOutcome = run.outcomes.find((outcome) => !outcome.ok);
+      update({
+        ...run,
+        status: action.result.status,
+        result: action.result,
+        updatedAt: hooks.now(),
+        ...(action.result.status === "failed" && failingOutcome?.error
+          ? { failureReason: failingOutcome.error }
+          : {}),
+      });
+      return run;
+    }
+
+    const stage = recipe.stages.find((candidate) => candidate.id === action.stageId);
+    if (!stage) {
+      // Defensive: the router only ever returns recipe stage ids.
+      throw new Error(`Router requested unknown stage "${action.stageId}".`);
+    }
+
+    update({ ...run, status: statusForStage(stage), updatedAt: hooks.now() });
+
+    const outcomes = await runStage(stage, run, hooks.signal);
+    update({ ...run, outcomes: [...run.outcomes, ...outcomes], updatedAt: hooks.now() });
+
+    if (hooks.signal.aborted) {
+      return finishCancelled();
+    }
+  }
+};

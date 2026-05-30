@@ -2,7 +2,7 @@ import type { IncomingMessage } from "node:http";
 import { join } from "node:path";
 import type { Duplex } from "node:stream";
 
-import type { TerminalSnapshot } from "@octogent/core";
+import type { TerminalSnapshot } from "@sentiph/core";
 import type { WebSocket } from "ws";
 import { WebSocketServer } from "ws";
 
@@ -32,11 +32,11 @@ import { createSessionRuntime } from "./terminalRuntime/sessionRuntime";
 import { createDefaultGitClient } from "./terminalRuntime/systemClients";
 import type { DirectSessionListener } from "./terminalRuntime/types";
 import {
+  type AgentWorkspaceMode,
   type CreateTerminalRuntimeOptions,
   type PersistedTerminal,
   type PersistedUiState,
   RuntimeInputError,
-  type TentacleWorkspaceMode,
   type TerminalAgentProvider,
   type TerminalLifecycleState,
   type TerminalNameOrigin,
@@ -51,7 +51,7 @@ export type {
   PersistedUiState,
   TerminalAgentProvider,
   TerminalNameOrigin,
-  TentacleWorkspaceMode,
+  AgentWorkspaceMode,
 } from "./terminalRuntime/types";
 export { isTerminalAgentProvider, isTerminalCompletionSoundId } from "./terminalRuntime/types";
 export { RuntimeInputError } from "./terminalRuntime/types";
@@ -62,28 +62,28 @@ export const createTerminalRuntime = ({
   workspaceCwd,
   projectStateDir,
   gitClient = createDefaultGitClient(),
-  getApiBaseUrl = () => process.env.OCTOGENT_API_ORIGIN ?? "http://127.0.0.1:8787",
+  getApiBaseUrl = () => process.env.SENTIPH_API_ORIGIN ?? "http://127.0.0.1:8787",
   maxConcurrentSessions,
 }: CreateTerminalRuntimeOptions) => {
-  const stateDir = projectStateDir ?? join(workspaceCwd, ".octogent");
+  const stateDir = projectStateDir ?? join(workspaceCwd, ".sentiph");
   const sessions = new Map<string, TerminalSession>();
   const websocketServer = new WebSocketServer({ noServer: true });
   const terminalEventsWebsocketServer = new WebSocketServer({ noServer: true });
   const terminalEventClients = new Set<WebSocket>();
-  const registryPath = join(stateDir, "state", "tentacles.json");
+  const registryPath = join(stateDir, "state", "agents.json");
   const registryState = loadTerminalRegistry(registryPath);
   const registryPersistence = createTerminalRegistryPersistence(registryPath);
   const terminals = registryState.terminals;
   let uiState = registryState.uiState;
-  const isDebugPtyLogsEnabled = process.env.OCTOGENT_DEBUG_PTY_LOGS === "1";
-  const ptyLogDir = process.env.OCTOGENT_DEBUG_PTY_LOG_DIR ?? join(stateDir, "logs");
+  const isDebugPtyLogsEnabled = process.env.SENTIPH_DEBUG_PTY_LOGS === "1";
+  const ptyLogDir = process.env.SENTIPH_DEBUG_PTY_LOG_DIR ?? join(stateDir, "logs");
   const transcriptDirectoryPath = join(stateDir, "state", "transcripts");
   const configuredMaxConcurrentSessions = (() => {
     if (maxConcurrentSessions !== undefined) {
       return maxConcurrentSessions;
     }
 
-    const raw = process.env.OCTOGENT_MAX_TERMINAL_SESSIONS?.trim();
+    const raw = process.env.SENTIPH_MAX_TERMINAL_SESSIONS?.trim();
     if (!raw) {
       return TERMINAL_MAX_CONCURRENT_SESSIONS;
     }
@@ -215,12 +215,12 @@ export const createTerminalRuntime = ({
 
   const resolveTerminalSession = (
     terminalId: string,
-  ): { sessionId: string; tentacleId: string } | null => {
+  ): { sessionId: string; agentId: string } | null => {
     const terminal = terminals.get(terminalId);
     if (terminal) {
       return {
         sessionId: terminalId,
-        tentacleId: terminal.worktreeId ?? terminal.tentacleId,
+        agentId: terminal.worktreeId ?? terminal.agentId,
       };
     }
 
@@ -245,7 +245,7 @@ export const createTerminalRuntime = ({
     terminals,
     sessions,
     resolveTerminalSession,
-    getTentacleWorkspaceCwd: worktreeManager.getTentacleWorkspaceCwd,
+    getAgentWorkspaceCwd: worktreeManager.getAgentWorkspaceCwd,
     isDebugPtyLogsEnabled,
     ptyLogDir,
     transcriptDirectoryPath,
@@ -294,7 +294,7 @@ export const createTerminalRuntime = ({
         continue;
       }
 
-      if (worktreeManager.hasTentacleWorktree(candidateId)) {
+      if (worktreeManager.hasAgentWorktree(candidateId)) {
         candidateNumber += 1;
         continue;
       }
@@ -307,14 +307,14 @@ export const createTerminalRuntime = ({
 
   const allocateDefaultTerminalName = (): string => {
     const usedNumbers = new Set<number>();
-    const pattern = /^Octogent Terminal (\d+)$/;
+    const pattern = /^Sentiph Terminal (\d+)$/;
     for (const t of terminals.values()) {
-      const match = pattern.exec(t.tentacleName);
+      const match = pattern.exec(t.agentName);
       if (match) usedNumbers.add(Number(match[1]));
     }
     let n = 1;
     while (usedNumbers.has(n)) n++;
-    return `Octogent Terminal ${n}`;
+    return `Sentiph Terminal ${n}`;
   };
 
   const isTerminalRecentlyActive = (terminal: PersistedTerminal): boolean => {
@@ -333,8 +333,8 @@ export const createTerminalRuntime = ({
       terminalId: terminal.terminalId,
       label: terminal.terminalId,
       state: lifecycleStateToAgentState(lifecycleState),
-      tentacleId: terminal.tentacleId,
-      tentacleName: terminal.tentacleName,
+      agentId: terminal.agentId,
+      agentName: terminal.agentName,
       workspaceMode: terminal.workspaceMode,
       createdAt: terminal.createdAt,
       hasUserPrompt: isTerminalRecentlyActive(terminal),
@@ -388,9 +388,9 @@ export const createTerminalRuntime = ({
 
   const createTerminal = ({
     terminalId: requestedTerminalId,
-    tentacleId: requestedTentacleId,
+    agentId: requestedAgentId,
     worktreeId: requestedWorktreeId,
-    tentacleName,
+    agentName,
     workspaceMode = "shared",
     agentProvider,
     initialPrompt,
@@ -401,10 +401,10 @@ export const createTerminalRuntime = ({
     autoRenamePromptContext,
   }: {
     terminalId?: string;
-    tentacleId?: string;
+    agentId?: string;
     worktreeId?: string;
-    tentacleName?: string;
-    workspaceMode?: TentacleWorkspaceMode;
+    agentName?: string;
+    workspaceMode?: AgentWorkspaceMode;
     agentProvider?: TerminalAgentProvider;
     initialPrompt?: string;
     initialInputDraft?: string;
@@ -434,14 +434,14 @@ export const createTerminalRuntime = ({
       const capacity = sessionRuntime.getSessionCapacity();
       if (capacity.active >= capacity.max) {
         throw new RuntimeInputError(
-          `Terminal session limit reached (${capacity.max}). Close an existing terminal session or increase OCTOGENT_MAX_TERMINAL_SESSIONS.`,
+          `Terminal session limit reached (${capacity.max}). Close an existing terminal session or increase SENTIPH_MAX_TERMINAL_SESSIONS.`,
         );
       }
     }
 
-    // Allow explicit tentacleId so multiple terminals can share a tentacle context (e.g. swarm workers).
-    const tentacleId = requestedTentacleId ?? terminalId;
-    const effectiveName = tentacleName ?? allocateDefaultTerminalName();
+    // Allow explicit agentId so multiple terminals can share a agent context (e.g. swarm workers).
+    const agentId = requestedAgentId ?? terminalId;
+    const effectiveName = agentName ?? allocateDefaultTerminalName();
 
     // Auto-allocate a unique worktreeId when creating a worktree terminal
     // so multiple worktree terminals can coexist (each gets its own directory).
@@ -450,10 +450,10 @@ export const createTerminalRuntime = ({
 
     const terminal: PersistedTerminal = {
       terminalId,
-      tentacleId,
+      agentId,
       ...(worktreeId ? { worktreeId } : {}),
-      tentacleName: effectiveName,
-      nameOrigin: nameOrigin ?? (tentacleName ? "user" : "generated"),
+      agentName: effectiveName,
+      nameOrigin: nameOrigin ?? (agentName ? "user" : "generated"),
       ...(autoRenamePromptContext ? { autoRenamePromptContext } : {}),
       createdAt: new Date().toISOString(),
       workspaceMode,
@@ -466,17 +466,17 @@ export const createTerminalRuntime = ({
       ...(parentTerminalId ? { parentTerminalId } : {}),
     };
 
-    const effectiveWorktreeId = worktreeId ?? tentacleId;
+    const effectiveWorktreeId = worktreeId ?? agentId;
     const shouldCreateWorktree = workspaceMode === "worktree";
     if (shouldCreateWorktree) {
-      worktreeManager.createTentacleWorktree(effectiveWorktreeId, baseRef);
+      worktreeManager.createAgentWorktree(effectiveWorktreeId, baseRef);
     }
 
     if (terminal.agentProvider === "claude-code") {
       // Claude hooks should only be installed for Claude-backed terminals.
       try {
         const hookTargetCwd = shouldCreateWorktree
-          ? worktreeManager.getTentacleWorkspaceCwd(effectiveWorktreeId)
+          ? worktreeManager.getAgentWorkspaceCwd(effectiveWorktreeId)
           : workspaceCwd;
         hookProcessor.installHooksInDirectory(hookTargetCwd);
       } catch {
@@ -606,8 +606,8 @@ export const createTerminalRuntime = ({
       if (patch.canvasOpenTerminalIds !== undefined) {
         uiState.canvasOpenTerminalIds = [...patch.canvasOpenTerminalIds];
       }
-      if (patch.canvasOpenTentacleIds !== undefined) {
-        uiState.canvasOpenTentacleIds = [...patch.canvasOpenTentacleIds];
+      if (patch.canvasOpenAgentIds !== undefined) {
+        uiState.canvasOpenAgentIds = [...patch.canvasOpenAgentIds];
       }
       if (patch.canvasTerminalsPanelWidth !== undefined) {
         uiState.canvasTerminalsPanelWidth = patch.canvasTerminalsPanelWidth;
@@ -621,13 +621,13 @@ export const createTerminalRuntime = ({
 
     createTerminal,
 
-    renameTerminal(terminalId: string, tentacleName: string): TerminalSnapshot | null {
+    renameTerminal(terminalId: string, agentName: string): TerminalSnapshot | null {
       const terminal = terminals.get(terminalId);
       if (!terminal) {
         return null;
       }
 
-      terminal.tentacleName = tentacleName;
+      terminal.agentName = agentName;
       terminal.nameOrigin = "user";
       terminal.autoRenamePromptContext = undefined;
       persistRegistry();
@@ -736,8 +736,8 @@ export const createTerminalRuntime = ({
 
         sessionRuntime.closeSession(cascadeTerminalId);
         if (cascadeTerminal.workspaceMode === "worktree") {
-          worktreeManager.removeTentacleWorktree(
-            cascadeTerminal.worktreeId ?? cascadeTerminal.tentacleId,
+          worktreeManager.removeAgentWorktree(
+            cascadeTerminal.worktreeId ?? cascadeTerminal.agentId,
           );
         }
         terminals.delete(cascadeTerminalId);
@@ -776,6 +776,11 @@ export const createTerminalRuntime = ({
       }
 
       return sessionRuntime.handleUpgrade(request, socket, head);
+    },
+
+    /** Push an arbitrary event to the terminal-event WebSocket clients (reused by pipelines). */
+    broadcastEvent(event: Record<string, unknown>) {
+      broadcastTerminalEvent(event);
     },
 
     connectDirect(terminalId: string, listener: DirectSessionListener): (() => void) | null {

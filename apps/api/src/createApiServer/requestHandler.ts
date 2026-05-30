@@ -5,45 +5,17 @@ import { extname, join } from "node:path";
 
 import type { UsageChartResponse } from "../claudeSessionScanner";
 import type { ClaudeUsageSnapshot } from "../claudeUsage";
-import type { CodeIntelStore } from "../codeIntelStore";
 import type { CodexUsageSnapshot } from "../codexUsage";
 import type { GitHubRepoSummarySnapshot } from "../githubRepoSummary";
 import { logVerbose } from "../logging";
-import type { MonitorService } from "../monitor";
-import { handleCodeIntelEventsRoute } from "./codeIntelRoutes";
-import {
-  handleConversationExportRoute,
-  handleConversationItemRoute,
-  handleConversationSearchRoute,
-  handleConversationsCollectionRoute,
-} from "./conversationRoutes";
-import {
-  handleDeckSkillsRoute,
-  handleDeckTentacleItemRoute,
-  handleDeckTentacleSkillsRoute,
-  handleDeckTentacleSwarmRoute,
-  handleDeckTentaclesRoute,
-  handleDeckTodoAddRoute,
-  handleDeckTodoDeleteRoute,
-  handleDeckTodoEditRoute,
-  handleDeckTodoSolveRoute,
-  handleDeckTodoToggleRoute,
-  handleDeckVaultFileRoute,
-} from "./deckRoutes";
-import { handleTentacleGitPullRequestRoute, handleTentacleGitRoute } from "./gitRoutes";
+import type { PipelineRuntime } from "../pipeline/pipelineRuntime";
+import { handleAgentGitPullRequestRoute, handleAgentGitRoute } from "./gitRoutes";
 import {
   handleChannelMessagesRoute,
   handleHookRoute,
-  handlePromptItemRoute,
-  handlePromptsCollectionRoute,
   handleUiStateRoute,
   handleWorkspaceSetupRoute,
 } from "./miscRoutes";
-import {
-  handleMonitorConfigRoute,
-  handleMonitorFeedRoute,
-  handleMonitorRefreshRoute,
-} from "./monitorRoutes";
 import type {
   ApiRouteHandler,
   RouteHandlerContext,
@@ -51,6 +23,7 @@ import type {
   TerminalRuntime,
 } from "./routeHelpers";
 import { writeJson, writeNoContent } from "./routeHelpers";
+import { handleRunCancelRoute, handleRunItemRoute, handleRunsCollectionRoute } from "./runsRoutes";
 import {
   getRequestCorsOrigin,
   isAllowedHostHeader,
@@ -87,10 +60,9 @@ const MIME_TYPES: Record<string, string> = {
 
 type CreateApiRequestHandlerOptions = {
   runtime: TerminalRuntime;
+  pipelineRuntime: PipelineRuntime;
   workspaceCwd: string;
   projectStateDir: string;
-  promptsDir: string;
-  userPromptsDir: string;
   webDistDir?: string | undefined;
   getApiBaseUrl: () => string;
   getApiPort: () => string;
@@ -100,32 +72,13 @@ type CreateApiRequestHandlerOptions = {
   readCodexUsageSnapshot: () => Promise<CodexUsageSnapshot>;
   readGithubRepoSummary: () => Promise<GitHubRepoSummarySnapshot>;
   scanUsageHeatmap: (scope: "all" | "project") => Promise<UsageChartResponse>;
-  monitorService: MonitorService;
   invalidateClaudeUsageCache: () => void;
-  codeIntelStore: CodeIntelStore;
   allowRemoteAccess: boolean;
 };
 
 const API_ROUTE_MAP: ReadonlyMap<string, readonly ApiRouteHandler[]> = new Map([
   ["channels", [handleChannelMessagesRoute]],
   ["hooks", [handleHookRoute]],
-  ["prompts", [handlePromptsCollectionRoute, handlePromptItemRoute]],
-  [
-    "deck",
-    [
-      handleDeckSkillsRoute,
-      handleDeckTentaclesRoute,
-      handleDeckTentacleItemRoute,
-      handleDeckTentacleSkillsRoute,
-      handleDeckTodoSolveRoute,
-      handleDeckTentacleSwarmRoute,
-      handleDeckTodoToggleRoute,
-      handleDeckTodoEditRoute,
-      handleDeckTodoAddRoute,
-      handleDeckTodoDeleteRoute,
-      handleDeckVaultFileRoute,
-    ],
-  ],
   ["terminal-snapshots", [handleTerminalSnapshotsRoute]],
   ["codex", [handleCodexUsageRoute]],
   ["claude", [handleClaudeUsageRoute]],
@@ -133,16 +86,6 @@ const API_ROUTE_MAP: ReadonlyMap<string, readonly ApiRouteHandler[]> = new Map([
   ["github", [handleGithubSummaryRoute]],
   ["setup", [handleWorkspaceSetupRoute]],
   ["ui-state", [handleUiStateRoute]],
-  ["monitor", [handleMonitorConfigRoute, handleMonitorFeedRoute, handleMonitorRefreshRoute]],
-  [
-    "conversations",
-    [
-      handleConversationsCollectionRoute,
-      handleConversationSearchRoute,
-      handleConversationExportRoute,
-      handleConversationItemRoute,
-    ],
-  ],
   [
     "terminals",
     [
@@ -152,8 +95,8 @@ const API_ROUTE_MAP: ReadonlyMap<string, readonly ApiRouteHandler[]> = new Map([
       handleTerminalItemRoute,
     ],
   ],
-  ["tentacles", [handleTentacleGitRoute, handleTentacleGitPullRequestRoute]],
-  ["code-intel", [handleCodeIntelEventsRoute]],
+  ["runs", [handleRunsCollectionRoute, handleRunCancelRoute, handleRunItemRoute]],
+  ["agents", [handleAgentGitRoute, handleAgentGitPullRequestRoute]],
 ]);
 
 const extractRoutePrefix = (pathname: string): string | null => {
@@ -198,10 +141,9 @@ const serveStaticFile = async (
 
 export const createApiRequestHandler = ({
   runtime,
+  pipelineRuntime,
   workspaceCwd,
   projectStateDir,
-  promptsDir,
-  userPromptsDir,
   webDistDir,
   getApiBaseUrl,
   getApiPort,
@@ -211,19 +153,16 @@ export const createApiRequestHandler = ({
   readCodexUsageSnapshot,
   readGithubRepoSummary,
   scanUsageHeatmap,
-  monitorService,
   invalidateClaudeUsageCache,
-  codeIntelStore,
   allowRemoteAccess,
 }: CreateApiRequestHandlerOptions) => {
   const resolvedWebDistDir = webDistDir && existsSync(webDistDir) ? webDistDir : null;
 
   const routeDependencies: RouteHandlerDependencies = {
     runtime,
+    pipelineRuntime,
     workspaceCwd,
     projectStateDir,
-    promptsDir,
-    userPromptsDir,
     getApiBaseUrl,
     getApiPort,
     readClaudeUsageSnapshot,
@@ -232,9 +171,7 @@ export const createApiRequestHandler = ({
     readCodexUsageSnapshot,
     readGithubRepoSummary,
     scanUsageHeatmap,
-    monitorService,
     invalidateClaudeUsageCache,
-    codeIntelStore,
   };
 
   return async (request: IncomingMessage, response: ServerResponse) => {

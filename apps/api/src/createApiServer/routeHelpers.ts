@@ -2,10 +2,9 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 
 import type { UsageChartResponse } from "../claudeSessionScanner";
 import type { ClaudeUsageSnapshot } from "../claudeUsage";
-import type { CodeIntelStore } from "../codeIntelStore";
 import type { CodexUsageSnapshot } from "../codexUsage";
 import type { GitHubRepoSummarySnapshot } from "../githubRepoSummary";
-import type { MonitorService } from "../monitor";
+import type { PipelineRuntime } from "../pipeline/pipelineRuntime";
 import { RequestBodyTooLargeError, readJsonBody } from "./requestParsers";
 import { withCors } from "./security";
 
@@ -13,10 +12,9 @@ export type TerminalRuntime = ReturnType<typeof import("../terminalRuntime").cre
 
 export type RouteHandlerDependencies = {
   runtime: TerminalRuntime;
+  pipelineRuntime: PipelineRuntime;
   workspaceCwd: string;
   projectStateDir: string;
-  promptsDir: string;
-  userPromptsDir: string;
   getApiBaseUrl: () => string;
   getApiPort: () => string;
   readClaudeUsageSnapshot: () => Promise<ClaudeUsageSnapshot>;
@@ -25,9 +23,7 @@ export type RouteHandlerDependencies = {
   readCodexUsageSnapshot: () => Promise<CodexUsageSnapshot>;
   readGithubRepoSummary: () => Promise<GitHubRepoSummarySnapshot>;
   scanUsageHeatmap: (scope: "all" | "project") => Promise<UsageChartResponse>;
-  monitorService: MonitorService;
   invalidateClaudeUsageCache: () => void;
-  codeIntelStore: CodeIntelStore;
 };
 
 export type RouteHandlerContext = {
