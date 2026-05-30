@@ -17,9 +17,8 @@ import {
   type WorkerOutcome,
   converge,
   nextAction,
+  outstandingCheckIssues,
 } from "@sentiph/core";
-
-import type { WorkerRun } from "./headlessWorker";
 
 export type RunStageFn = (
   stage: RecipeStage,
@@ -45,50 +44,12 @@ export const statusForStage = (stage: RecipeStage): RunStatus => {
   }
 };
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  value !== null && typeof value === "object" && !Array.isArray(value);
-
-const readIssues = (result: unknown): IssueFinding[] => {
-  if (!isRecord(result) || !Array.isArray(result.issues)) {
-    return [];
-  }
-  const issues: IssueFinding[] = [];
-  for (const raw of result.issues) {
-    if (!isRecord(raw) || typeof raw.location !== "string" || typeof raw.problem !== "string") {
-      continue;
-    }
-    if (raw.severity !== "low" && raw.severity !== "medium" && raw.severity !== "high") {
-      continue;
-    }
-    const finding: IssueFinding = {
-      severity: raw.severity,
-      location: raw.location,
-      problem: raw.problem,
-    };
-    if (typeof raw.suggestion === "string") {
-      finding.suggestion = raw.suggestion;
-    }
-    issues.push(finding);
-  }
-  return issues;
-};
-
-/** Issues from the most recent (trailing contiguous) check round — what a fix must address. */
-export const collectOutstandingIssues = (run: Run, checkStageId: string): IssueFinding[] => {
-  const round: WorkerOutcome[] = [];
-  for (let index = run.outcomes.length - 1; index >= 0; index -= 1) {
-    const outcome = run.outcomes[index];
-    if (!outcome) {
-      continue;
-    }
-    if (outcome.stageId === checkStageId) {
-      round.unshift(outcome);
-    } else if (round.length > 0) {
-      break;
-    }
-  }
-  return round.flatMap((outcome) => readIssues(outcome.result));
-};
+/**
+ * Issues from the most recent check round — what a fix must address. Delegates
+ * to the core router so the prompt and the gate read issues identically.
+ */
+export const collectOutstandingIssues = (run: Run, checkStageId: string): IssueFinding[] =>
+  outstandingCheckIssues(run, checkStageId);
 
 const formatIssues = (issues: IssueFinding[]): string =>
   issues
@@ -170,10 +131,26 @@ export const runPipeline = async (
     update({ ...run, status: statusForStage(stage), updatedAt: hooks.now() });
 
     const outcomes = await runStage(stage, run, hooks.signal);
-    update({ ...run, outcomes: [...run.outcomes, ...outcomes], updatedAt: hooks.now() });
 
     if (hooks.signal.aborted) {
+      run = { ...run, outcomes: [...run.outcomes, ...outcomes] };
       return finishCancelled();
     }
+
+    if (outcomes.length === 0) {
+      // A stage that produces no outcomes would never advance the router — fail
+      // rather than spin (guards fanout:0 or a misbehaving stage runner).
+      const base = converge(recipe, run);
+      update({
+        ...run,
+        status: "failed",
+        failureReason: `stage_produced_no_outcomes: ${stage.id}`,
+        result: { ...base, status: "failed" },
+        updatedAt: hooks.now(),
+      });
+      return run;
+    }
+
+    update({ ...run, outcomes: [...run.outcomes, ...outcomes], updatedAt: hooks.now() });
   }
 };

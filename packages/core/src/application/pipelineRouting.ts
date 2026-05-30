@@ -252,11 +252,18 @@ const readFilesTouched = (result: unknown): string[] => {
   return result.filesTouched.filter((file): file is string => typeof file === "string");
 };
 
+/**
+ * Issues from the most recent check round — what a fix stage must still address.
+ * Deduped, in first-seen order. Shared so the conductor's fix prompt and the
+ * gate read the same issues (no divergent copies).
+ */
+export const outstandingCheckIssues = (run: Run, checkStageId: StageId): IssueFinding[] =>
+  collectRoundIssues(latestStageRound(run.outcomes, checkStageId));
+
 /** Build the final RunResult from the outcome log. */
 export const converge = (recipe: Recipe, run: Run): RunResult => {
   const classification = classify(recipe, run);
-  const status: RunStatus =
-    classification.kind === "done" ? classification.status : run.status;
+  const status: RunStatus = classification.kind === "done" ? classification.status : run.status;
 
   const buildStage = stageByRole(recipe, "build");
   const checkStage = stageByRole(recipe, "check");

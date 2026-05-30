@@ -9,6 +9,7 @@
 
 import type { Recipe, RecipeStage, Run, WorkerOutcome } from "@sentiph/core";
 
+import { toErrorMessage } from "../terminalRuntime/systemClients";
 import { type RunStageFn, renderStagePrompt } from "./conductor";
 import { type WorkerRun, type WorkerSpec, runHeadlessWorker } from "./headlessWorker";
 
@@ -53,14 +54,26 @@ export const createWorkerStageRunner = (deps: WorkerStageRunnerDeps): RunStageFn
       Array.from({ length: fanout }, (_unused, index) =>
         limit(async () => {
           const startedAt = now();
-          const workerRun = await runWorker({
-            prompt,
-            stage,
-            cwd: deps.cwd,
-            timeoutMs: deps.timeoutMs,
-            signal,
-          });
-          return toOutcome(stage, index, workerRun, startedAt, now());
+          try {
+            const workerRun = await runWorker({
+              prompt,
+              stage,
+              cwd: deps.cwd,
+              timeoutMs: deps.timeoutMs,
+              signal,
+            });
+            return toOutcome(stage, index, workerRun, startedAt, now());
+          } catch (error) {
+            // A worker that throws becomes a failed outcome rather than discarding
+            // its siblings — the gate routes on it like any other non-ok worker.
+            return toOutcome(
+              stage,
+              index,
+              { ok: false, error: toErrorMessage(error) },
+              startedAt,
+              now(),
+            );
+          }
         }),
       ),
     );

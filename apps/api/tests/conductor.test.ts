@@ -156,6 +156,38 @@ describe("runPipeline trajectories", () => {
     expect(final.status).toBe("failed");
   });
 
+  it("records the failing worker's error as the run failureReason", async () => {
+    const failWithError: WorkerOutcome = {
+      stageId: "build",
+      index: 0,
+      ok: false,
+      error: "build exploded",
+      startedAt: "t",
+      endedAt: "t",
+    };
+    const { fn } = scriptedRunner({ build: [[failWithError]] });
+    const final = await runPipeline(
+      STANDARD_RECIPE,
+      baseRun(),
+      fn,
+      hooks(new AbortController().signal, []),
+    );
+    expect(final.status).toBe("failed");
+    expect(final.failureReason).toBe("build exploded");
+  });
+
+  it("fails fast when a stage produces no outcomes (guards an infinite loop)", async () => {
+    const { fn } = scriptedRunner({ build: [[]] });
+    const final = await runPipeline(
+      STANDARD_RECIPE,
+      baseRun(),
+      fn,
+      hooks(new AbortController().signal, []),
+    );
+    expect(final.status).toBe("failed");
+    expect(final.failureReason).toContain("stage_produced_no_outcomes");
+  });
+
   it("cancels immediately when the signal is already aborted", async () => {
     const updates: Run[] = [];
     const { fn, order } = scriptedRunner({ build: [buildOk()] });

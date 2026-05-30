@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -90,5 +90,31 @@ describe("runStore persistence", () => {
     const raw = JSON.parse(readFileSync(join(stateDir, "state", "runs", "run-1.json"), "utf8"));
     expect(raw.version).toBe(1);
     expect(raw.run.runId).toBe("run-1");
+  });
+
+  it("debounces the write so it lands after the window without an explicit flush", async () => {
+    const stateDir = tempDir();
+    const persistence = createRunStorePersistence(stateDir);
+    persistence.persistRun(makeRun({ runId: "run-9" }));
+    const path = join(stateDir, "state", "runs", "run-9.json");
+    expect(existsSync(path)).toBe(false); // debounced — nothing written yet
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(existsSync(path)).toBe(true);
+    await persistence.close();
+  });
+
+  it("does not rewrite identical content", async () => {
+    const stateDir = tempDir();
+    const persistence = createRunStorePersistence(stateDir);
+    const run = makeRun({ runId: "run-1" });
+    persistence.persistRun(run);
+    await persistence.flush();
+    const path = join(stateDir, "state", "runs", "run-1.json");
+    const firstMtime = statSync(path).mtimeMs;
+
+    persistence.persistRun(run); // identical → deduped, no second write
+    await persistence.flush();
+    expect(statSync(path).mtimeMs).toBe(firstMtime);
+    await persistence.close();
   });
 });
