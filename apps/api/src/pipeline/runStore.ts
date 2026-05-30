@@ -31,6 +31,7 @@ const VALID_STATUSES = new Set<RunStatus>([
   "building",
   "checking",
   "fixing",
+  "awaiting_approval",
   "passed",
   "completed_with_issues",
   "failed",

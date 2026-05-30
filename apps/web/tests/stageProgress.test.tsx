@@ -68,4 +68,23 @@ describe("stageProgress", () => {
     const r = run({ status: "failed", outcomes: [outcome("build", 0, false, undefined)] });
     expect(stateByRole(r).build).toBe("failed");
   });
+
+  it("omits the fix stage for the quick recipe", () => {
+    const r = run({ recipeId: "quick", status: "passed" });
+    expect(stageProgress(r).map((stage) => stage.role)).toEqual(["build", "check"]);
+  });
+
+  it("includes the approval gate for the careful recipe", () => {
+    const r = run({
+      recipeId: "careful",
+      status: "awaiting_approval",
+      outcomes: [
+        outcome("build", 0, true, { summary: "b", filesTouched: [], done: true }),
+        outcome("check", 0, true, { verdict: "pass", issues: [] }),
+      ],
+    });
+    const stages = stageProgress(r);
+    expect(stages.map((stage) => stage.role)).toEqual(["build", "check", "fix", "approval"]);
+    expect(stages.find((stage) => stage.role === "approval")?.state).toBe("active");
+  });
 });

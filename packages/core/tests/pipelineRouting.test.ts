@@ -348,3 +348,42 @@ describe("human approval gate", () => {
     expect(nextAction(CAREFUL, run)).toEqual({ kind: "await_approval", stageId: "approval" });
   });
 });
+
+const QUICK: Recipe = {
+  id: "quick",
+  title: "Quick",
+  maxFixCycles: 0,
+  stages: [
+    STANDARD.stages[0] as Recipe["stages"][number], // build
+    STANDARD.stages[1] as Recipe["stages"][number], // check
+  ],
+};
+
+describe("recipe without a fix stage (quick)", () => {
+  it("runs build then check", () => {
+    expect(nextAction(QUICK, makeRun([]))).toEqual({ kind: "run_stage", stageId: "build" });
+    expect(nextAction(QUICK, makeRun([buildOk()]))).toEqual({
+      kind: "run_stage",
+      stageId: "check",
+    });
+  });
+
+  it("passes when the check passes", () => {
+    const action = nextAction(QUICK, makeRun([buildOk(), checkPass(0), checkPass(1)]));
+    expect(action.kind).toBe("done");
+    if (action.kind === "done") {
+      expect(action.result.status).toBe("passed");
+    }
+  });
+
+  it("completes with issues when there is no fix budget", () => {
+    const action = nextAction(
+      QUICK,
+      makeRun([buildOk(), checkNeedsFix(0, [HIGH]), checkNeedsFix(1, [HIGH])]),
+    );
+    expect(action.kind).toBe("done");
+    if (action.kind === "done") {
+      expect(action.result.status).toBe("completed_with_issues");
+    }
+  });
+});

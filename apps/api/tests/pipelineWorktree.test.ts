@@ -35,6 +35,23 @@ const passingWorker = async (spec: WorkerSpec): Promise<WorkerRun> => {
 
 const failingBuildWorker = async (): Promise<WorkerRun> => ({ ok: false, error: "boom" });
 
+// Never resolves the issues → run ends completed_with_issues after the bounded fix.
+const stubbornWorker = async (spec: WorkerSpec): Promise<WorkerRun> => {
+  if (spec.stage.role === "build") {
+    return { ok: true, result: { summary: "b", filesTouched: ["a.ts"], done: true } };
+  }
+  if (spec.stage.role === "fix") {
+    return { ok: true, result: { summary: "f", resolved: [], done: true } };
+  }
+  return {
+    ok: true,
+    result: {
+      verdict: "needs_fix",
+      issues: [{ severity: "high", location: "a.ts:1", problem: "x" }],
+    },
+  };
+};
+
 const recordingProvider = () => {
   const acquired: string[] = [];
   const released: Array<{ runId: string; status: RunStatus }> = [];
@@ -103,6 +120,64 @@ describe("pipeline runtime worktree integration", () => {
     const run = runtime.startRun("break it");
     await waitForTerminal(runtime, run.runId);
     expect(released).toEqual([{ runId: run.runId, status: "failed" }]);
+    await runtime.close();
+  });
+
+  it("releases with completed_with_issues when the bounded fix loop is exhausted", async () => {
+    const stateDir = tempDir();
+    const { provider, released } = recordingProvider();
+    const runtime = createPipelineRuntime({
+      workspaceCwd: stateDir,
+      projectStateDir: stateDir,
+      worktreeProvider: provider,
+      runWorker: stubbornWorker,
+    });
+    const run = runtime.startRun("hard to fix");
+    await waitForTerminal(runtime, run.runId);
+    expect(released).toEqual([{ runId: run.runId, status: "completed_with_issues" }]);
+    await runtime.close();
+  });
+
+  it("fails the run when acquiring the workspace throws", async () => {
+    const stateDir = tempDir();
+    const provider: WorktreeProvider = {
+      async acquire() {
+        throw new Error("disk full");
+      },
+      async release() {},
+    };
+    const runtime = createPipelineRuntime({
+      workspaceCwd: stateDir,
+      projectStateDir: stateDir,
+      worktreeProvider: provider,
+      runWorker: passingWorker,
+    });
+    const run = runtime.startRun("task");
+    const finished = await waitForTerminal(runtime, run.runId);
+    expect(finished.status).toBe("failed");
+    expect(finished.failureReason).toContain("workspace_error");
+    await runtime.close();
+  });
+
+  it("still finishes when releasing the workspace throws", async () => {
+    const stateDir = tempDir();
+    const provider: WorktreeProvider = {
+      async acquire(target: Run) {
+        return { cwd: `/wt/${target.runId}` };
+      },
+      async release() {
+        throw new Error("cleanup failed");
+      },
+    };
+    const runtime = createPipelineRuntime({
+      workspaceCwd: stateDir,
+      projectStateDir: stateDir,
+      worktreeProvider: provider,
+      runWorker: passingWorker,
+    });
+    const run = runtime.startRun("task");
+    const finished = await waitForTerminal(runtime, run.runId);
+    expect(finished.status).toBe("passed");
     await runtime.close();
   });
 });

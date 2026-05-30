@@ -100,4 +100,30 @@ describe("createPipelineRuntime — human approval gate", () => {
     expect(runtime.approveRun("run-1")).toBe(false);
     expect(runtime.rejectRun("run-1")).toBe(false);
   });
+
+  it("cancels a run that is parked at the gate and releases its workspace", async () => {
+    const stateDir = tempDir();
+    const released: Array<{ runId: string; status: RunStatus }> = [];
+    const runtime = createPipelineRuntime({
+      workspaceCwd: stateDir,
+      projectStateDir: stateDir,
+      runWorker: passingWorker,
+      worktreeProvider: {
+        async acquire(target) {
+          return { cwd: `/wt/${target.runId}`, branch: `sentiph/${target.runId}` };
+        },
+        async release(target, status) {
+          released.push({ runId: target.runId, status });
+        },
+      },
+    });
+
+    const run = runtime.startRun("ship it", "careful");
+    await waitForStatus(runtime, run.runId, (status) => status === "awaiting_approval");
+    expect(runtime.cancelRun(run.runId)).toBe(true);
+    await waitForStatus(runtime, run.runId, isTerminal);
+    expect(runtime.getRun(run.runId)?.status).toBe("cancelled");
+    expect(released).toEqual([{ runId: run.runId, status: "cancelled" }]);
+    await runtime.close();
+  });
 });

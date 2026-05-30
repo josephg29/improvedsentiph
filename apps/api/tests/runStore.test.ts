@@ -66,6 +66,20 @@ describe("runStore persistence", () => {
     expect(loaded.reconciledRunIds).toEqual(["run-7"]);
   });
 
+  it("reconciles a run parked at the approval gate instead of dropping it", async () => {
+    const stateDir = tempDir();
+    const persistence = createRunStorePersistence(stateDir);
+    const run = makeRun({ runId: "run-8", status: "awaiting_approval" });
+    persistence.persistRun(run);
+    persistence.persistIndex([run.runId]);
+    await persistence.flush();
+
+    const loaded = loadRunStore(stateDir, "2026-05-29T03:00:00.000Z");
+    expect(loaded.runs.get("run-8")?.status).toBe("failed");
+    expect(loaded.runs.get("run-8")?.failureReason).toBe("api_restart");
+    expect(loaded.reconciledRunIds).toEqual(["run-8"]);
+  });
+
   it("returns an empty store when nothing is persisted", () => {
     const loaded = loadRunStore(tempDir(), "2026-05-29T00:00:00.000Z");
     expect(loaded.runs.size).toBe(0);

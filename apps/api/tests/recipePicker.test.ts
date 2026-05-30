@@ -34,4 +34,18 @@ describe("pickRecipe", () => {
     const task = "Refactor the security middleware";
     expect(pickRecipe(task)).toBe(pickRecipe(task));
   });
+
+  it("prefers careful when a task has both careful and quick signals", () => {
+    expect(pickRecipe("Fix a typo in the auth login screen")).toBe("careful");
+  });
+
+  it("only treats short tasks as quick at the length boundary", () => {
+    const word = "typo";
+    const short = `${word} ${"x".repeat(80 - word.length - 1)}`; // 80 chars
+    const long = `${word} ${"x".repeat(80 - word.length)}`; // 81 chars
+    expect(short.length).toBe(80);
+    expect(long.length).toBe(81);
+    expect(pickRecipe(short)).toBe("quick");
+    expect(pickRecipe(long)).toBe("standard");
+  });
 });

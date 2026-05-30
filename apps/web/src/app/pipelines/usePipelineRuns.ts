@@ -61,9 +61,23 @@ export const usePipelineRuns = (): UsePipelineRuns => {
   const [error, setError] = useState<string | null>(null);
   const [isStarting, setIsStarting] = useState(false);
 
+  // Upserts are guarded by updatedAt so a slow GET can't clobber a fresher
+  // WebSocket update (and vice versa).
   const upsertRun = useCallback((run: Run) => {
-    setSummaries((current) => ({ ...current, [run.runId]: toListItem(run) }));
-    setDetails((current) => ({ ...current, [run.runId]: run }));
+    setDetails((current) => {
+      const existing = current[run.runId];
+      if (existing && existing.updatedAt > run.updatedAt) {
+        return current;
+      }
+      return { ...current, [run.runId]: run };
+    });
+    setSummaries((current) => {
+      const existing = current[run.runId];
+      if (existing && existing.updatedAt > run.updatedAt) {
+        return current;
+      }
+      return { ...current, [run.runId]: toListItem(run) };
+    });
   }, []);
 
   // Initial list.
@@ -77,7 +91,17 @@ export const usePipelineRuns = (): UsePipelineRuns => {
         }
         const list = (await response.json()) as RunListItem[];
         if (!cancelled) {
-          setSummaries(Object.fromEntries(list.map((item) => [item.runId, toListItem(item)])));
+          // Merge — don't replace — so runs already delivered over the socket survive.
+          setSummaries((current) => {
+            const next = { ...current };
+            for (const item of list) {
+              const existing = next[item.runId];
+              if (!existing || existing.updatedAt <= item.updatedAt) {
+                next[item.runId] = toListItem(item);
+              }
+            }
+            return next;
+          });
         }
       } catch (caught) {
         if (!cancelled) {
@@ -90,9 +114,13 @@ export const usePipelineRuns = (): UsePipelineRuns => {
     };
   }, []);
 
-  // Live updates over the shared terminal-event socket.
+  // Live updates over the shared terminal-event socket, with reconnect so live
+  // run progress resumes if the socket drops.
   useEffect(() => {
-    const socket = new WebSocket(buildTerminalEventsSocketUrl());
+    let socket: WebSocket | null = null;
+    let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
+    let closed = false;
+
     const onMessage = (event: MessageEvent) => {
       if (typeof event.data !== "string") {
         return;
@@ -102,10 +130,26 @@ export const usePipelineRuns = (): UsePipelineRuns => {
         upsertRun(run);
       }
     };
-    socket.addEventListener("message", onMessage);
+
+    const connect = () => {
+      socket = new WebSocket(buildTerminalEventsSocketUrl());
+      socket.addEventListener("message", onMessage);
+      socket.addEventListener("close", () => {
+        if (closed) {
+          return;
+        }
+        reconnectTimer = setTimeout(connect, 2000);
+      });
+    };
+
+    connect();
     return () => {
-      socket.removeEventListener("message", onMessage);
-      socket.close();
+      closed = true;
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+      }
+      socket?.removeEventListener("message", onMessage);
+      socket?.close();
     };
   }, [upsertRun]);
 
@@ -124,31 +168,40 @@ export const usePipelineRuns = (): UsePipelineRuns => {
     [upsertRun],
   );
 
-  const startRun = useCallback(async (task: string, recipeId?: string) => {
-    setIsStarting(true);
-    setError(null);
-    try {
-      const response = await fetch(buildRunsUrl(), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ task, ...(recipeId ? { recipeId } : {}) }),
-      });
-      if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? `Failed to start run (${response.status}).`);
+  const startRun = useCallback(
+    async (task: string, recipeId?: string) => {
+      setIsStarting(true);
+      setError(null);
+      try {
+        const response = await fetch(buildRunsUrl(), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ task, ...(recipeId ? { recipeId } : {}) }),
+        });
+        if (!response.ok) {
+          const body = (await response.json().catch(() => null)) as { error?: string } | null;
+          throw new Error(body?.error ?? `Failed to start run (${response.status}).`);
+        }
+        const { runId } = (await response.json()) as { runId: string };
+        // Fetch the detail immediately so the panel populates even if the socket
+        // misses the first events.
+        await selectRun(runId);
+      } catch (caught) {
+        setError(messageOf(caught));
+      } finally {
+        setIsStarting(false);
       }
-      const { runId } = (await response.json()) as { runId: string };
-      setSelectedRunId(runId);
-    } catch (caught) {
-      setError(messageOf(caught));
-    } finally {
-      setIsStarting(false);
-    }
-  }, []);
+    },
+    [selectRun],
+  );
 
   const post = useCallback(async (url: string) => {
     try {
-      await fetch(url, { method: "POST" });
+      const response = await fetch(url, { method: "POST" });
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as { error?: string } | null;
+        setError(body?.error ?? `Request failed (${response.status}).`);
+      }
     } catch (caught) {
       setError(messageOf(caught));
     }
