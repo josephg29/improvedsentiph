@@ -1,0 +1,1155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>sentiph — Full Analysis: Gaps, Operation, and Success Forecast</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface2: #1f2937;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #58a6ff;
+      --accent2: #bc8cff;
+      --green: #3fb950;
+      --yellow: #d29922;
+      --red: #f85149;
+      --orange: #f0883e;
+      --font: "Segoe UI", system-ui, -apple-system, sans-serif;
+      --mono: "Fira Code", "Cascadia Code", Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── Layout ── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 2.5rem 4rem;
+    }
+
+    header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    header h1 span {
+      color: var(--accent);
+    }
+
+    header p.tagline {
+      color: var(--muted);
+      margin-top: 0.4rem;
+      font-size: 1rem;
+    }
+
+    .meta {
+      display: flex;
+      gap: 1.5rem;
+      margin-top: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .meta-item {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.15rem 0.6rem;
+      border-radius: 999px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .badge-green  { background: rgba(63,185,80,0.15); color: var(--green); border: 1px solid rgba(63,185,80,0.3); }
+    .badge-yellow { background: rgba(210,153,34,0.15); color: var(--yellow); border: 1px solid rgba(210,153,34,0.3); }
+    .badge-red    { background: rgba(248,81,73,0.15);  color: var(--red);    border: 1px solid rgba(248,81,73,0.3); }
+    .badge-blue   { background: rgba(88,166,255,0.15); color: var(--accent); border: 1px solid rgba(88,166,255,0.3); }
+    .badge-purple { background: rgba(188,140,255,0.15); color: var(--accent2); border: 1px solid rgba(188,140,255,0.3); }
+
+    .toc-bar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0.6rem 4rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      gap: 1.5rem;
+      overflow-x: auto;
+      white-space: nowrap;
+    }
+
+    .toc-bar a {
+      font-size: 0.82rem;
+      color: var(--muted);
+      font-weight: 500;
+      transition: color 0.15s;
+    }
+
+    .toc-bar a:hover { color: var(--text); text-decoration: none; }
+
+    main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 3rem 2rem 6rem;
+    }
+
+    /* ── Sections ── */
+    section {
+      margin-bottom: 4rem;
+    }
+
+    h2 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--text);
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.5rem;
+      margin-bottom: 1.5rem;
+      scroll-margin-top: 3.5rem;
+    }
+
+    h2 .num {
+      color: var(--muted);
+      font-weight: 400;
+      margin-right: 0.5rem;
+    }
+
+    h3 {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: var(--accent);
+      margin: 1.5rem 0 0.75rem;
+    }
+
+    p {
+      color: #cdd9e5;
+      margin-bottom: 0.8rem;
+    }
+
+    ul, ol {
+      padding-left: 1.4rem;
+      margin-bottom: 0.8rem;
+    }
+
+    li {
+      color: #cdd9e5;
+      margin-bottom: 0.35rem;
+    }
+
+    li strong { color: var(--text); }
+
+    code {
+      font-family: var(--mono);
+      font-size: 0.82em;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 0.1em 0.35em;
+      color: #e3b341;
+    }
+
+    pre {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1rem 1.25rem;
+      overflow-x: auto;
+      margin: 0.75rem 0 1rem;
+    }
+
+    pre code {
+      background: none;
+      border: none;
+      padding: 0;
+      font-size: 0.82rem;
+      color: #cdd9e5;
+    }
+
+    /* ── Cards ── */
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem 1.2rem;
+    }
+
+    .card h4 {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 0.4rem;
+    }
+
+    .card p {
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin: 0;
+    }
+
+    .card.green  { border-left: 3px solid var(--green); }
+    .card.yellow { border-left: 3px solid var(--yellow); }
+    .card.red    { border-left: 3px solid var(--red); }
+    .card.blue   { border-left: 3px solid var(--accent); }
+
+    /* ── Tables ── */
+    .table-wrap {
+      overflow-x: auto;
+      margin: 1rem 0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+    }
+
+    thead th {
+      background: var(--surface);
+      color: var(--muted);
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 0.5rem 0.9rem;
+      border: 1px solid var(--border);
+      text-align: left;
+    }
+
+    tbody td {
+      padding: 0.55rem 0.9rem;
+      border: 1px solid var(--border);
+      vertical-align: top;
+      color: #cdd9e5;
+    }
+
+    tbody tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+    tbody tr:hover td { background: rgba(255,255,255,0.04); }
+
+    /* ── Callouts ── */
+    .callout {
+      border-radius: 6px;
+      padding: 0.9rem 1.1rem;
+      margin: 1rem 0;
+      border-left: 3px solid;
+      font-size: 0.9rem;
+    }
+
+    .callout.info    { background: rgba(88,166,255,0.07); border-color: var(--accent); }
+    .callout.warn    { background: rgba(210,153,34,0.07); border-color: var(--yellow); }
+    .callout.success { background: rgba(63,185,80,0.07);  border-color: var(--green); }
+    .callout.danger  { background: rgba(248,81,73,0.07);  border-color: var(--red); }
+
+    .callout strong { color: var(--text); }
+
+    /* ── Score card ── */
+    .score-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 0.75rem;
+      margin: 1.25rem 0;
+    }
+
+    .score-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.85rem 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+    }
+
+    .score-item .label {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .score-item .score {
+      font-size: 1.6rem;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .score-item .desc {
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    .score-green  { color: var(--green); }
+    .score-yellow { color: var(--yellow); }
+    .score-red    { color: var(--red); }
+
+    /* ── Verdict box ── */
+    .verdict {
+      background: linear-gradient(135deg, rgba(88,166,255,0.08) 0%, rgba(188,140,255,0.08) 100%);
+      border: 1px solid rgba(88,166,255,0.3);
+      border-radius: 10px;
+      padding: 2rem;
+      margin: 2rem 0;
+    }
+
+    .verdict h3 {
+      color: var(--accent);
+      font-size: 1.15rem;
+      margin-top: 0;
+    }
+
+    .verdict p { color: #cdd9e5; }
+
+    /* ── Flow diagram ── */
+    .flow {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      flex-wrap: wrap;
+      margin: 1rem 0;
+      font-size: 0.82rem;
+    }
+
+    .flow-step {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0.35rem 0.7rem;
+      white-space: nowrap;
+    }
+
+    .flow-arrow {
+      color: var(--muted);
+      padding: 0 0.3rem;
+      font-size: 0.9rem;
+    }
+
+    /* ── Sections for checklist items ── */
+    .check-list li {
+      list-style: none;
+      padding-left: 0;
+    }
+
+    .check-list li::before {
+      display: inline-block;
+      width: 1.4rem;
+      font-size: 0.9rem;
+    }
+
+    .check-list li.done::before   { content: "✅ "; }
+    .check-list li.partial::before { content: "⚠️ "; }
+    .check-list li.missing::before { content: "❌ "; }
+
+    /* ── Responsive ── */
+    @media (max-width: 680px) {
+      header { padding: 1.5rem 1.25rem; }
+      .toc-bar { padding: 0.5rem 1rem; }
+      main { padding: 2rem 1rem 4rem; }
+    }
+
+    /* ── Print ── */
+    @media print {
+      .toc-bar { display: none; }
+      header { background: white; color: black; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1><span>sentiph</span> — Full Product &amp; Architecture Analysis</h1>
+  <p class="tagline">Gaps, operational mechanics, and success forecast for the multi-agent orchestration platform</p>
+  <div class="meta">
+    <span class="meta-item">Analyzed: May 30, 2026</span>
+    <span class="meta-item">Version: 0.1.0</span>
+    <span class="meta-item">
+      <span class="badge badge-yellow">Pre-release</span>
+    </span>
+    <span class="meta-item">
+      <span class="badge badge-blue">~9,860 LOC TypeScript</span>
+    </span>
+    <span class="meta-item">
+      <span class="badge badge-green">Local-first</span>
+    </span>
+  </div>
+</header>
+
+<nav class="toc-bar">
+  <a href="#what-it-is">What It Is</a>
+  <a href="#architecture">Architecture</a>
+  <a href="#how-it-works">How It Works</a>
+  <a href="#implemented">Implemented</a>
+  <a href="#gaps">Gaps &amp; Weaknesses</a>
+  <a href="#api">API Surface</a>
+  <a href="#testing">Testing</a>
+  <a href="#dependencies">Dependencies</a>
+  <a href="#success-forecast">Success Forecast</a>
+  <a href="#scorecard">Scorecard</a>
+</nav>
+
+<main>
+
+<!-- ───────────────────────────────────────────────── 1. WHAT IT IS -->
+<section id="what-it-is">
+  <h2><span class="num">01</span> What sentiph Is</h2>
+
+  <p>
+    <strong>sentiph</strong> is a local web dashboard for orchestrating multiple Claude Code agents in parallel
+    on a live canvas. Its core thesis: terminal coding agents can be composed as interchangeable building
+    blocks inside an orchestration layer, the same way microservices are behind an API gateway.
+  </p>
+
+  <div class="card-grid">
+    <div class="card blue">
+      <h4>Live Agent Canvas</h4>
+      <p>Color-coded circle nodes, d3-force physics, WebSocket-streamed state — watch agents work in real time.</p>
+    </div>
+    <div class="card blue">
+      <h4>PTY-Backed Terminals</h4>
+      <p>Each agent is a real PTY session with scrollback, lifecycle state, transcript persistence, and hook callbacks.</p>
+    </div>
+    <div class="card blue">
+      <h4>Pipelines v1</h4>
+      <p>Deterministic <code>build → check → fix → done</code> routine. Schema-validated headless workers. No LLM control flow.</p>
+    </div>
+    <div class="card blue">
+      <h4>Child Agents &amp; Messaging</h4>
+      <p>Spawn up to 9 child agents per parent. In-memory channel queues for short agent-to-agent coordination.</p>
+    </div>
+    <div class="card blue">
+      <h4>Activity View</h4>
+      <p>Git commit heatmap, Claude + Codex token usage charts, recent PR summary — all from local data.</p>
+    </div>
+    <div class="card blue">
+      <h4>Orchestration MCP</h4>
+      <p>MCP server exposes <code>build</code>, <code>spawn_terminal</code>, <code>list_terminals</code>, etc. so agents can orchestrate each other.</p>
+    </div>
+  </div>
+
+  <h3>Non-Goals (v1)</h3>
+  <ul>
+    <li>No arbitrary DAG pipelines — v1 is linear with one conditional branch.</li>
+    <li>No persistent message delivery — channels are in-memory only.</li>
+    <li>No automatic multi-level group leaders — prompt-based only.</li>
+    <li>No distributed or multi-machine orchestration.</li>
+  </ul>
+
+  <div class="callout info">
+    <strong>Target user:</strong> A developer who needs to delegate parallel workstreams to Claude agents and wants visibility into what each one is doing — without babysitting individual terminal tabs.
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────── 2. ARCHITECTURE -->
+<section id="architecture">
+  <h2><span class="num">02</span> Architecture</h2>
+
+  <h3>Monorepo Layout</h3>
+  <pre><code>sentiph/
+├── packages/core          ← framework-agnostic domain types + pure application logic
+├── apps/api               ← Node.js HTTP/WebSocket server, PTY runtime, worktrees, pipelines
+├── apps/web               ← Vite + React operator UI
+├── bin/                   ← CLI entry point
+└── docs/                  ← reference documentation</code></pre>
+
+  <h3>Layered Architecture</h3>
+  <pre><code>Browser (React — xterm, d3-force, WebSocket)
+       ↕ HTTP / WebSocket
+Local API (Node.js — Express-like router)
+  ├── Agent registry + lifecycle
+  ├── PTY session runtime (node-pty)
+  ├── Pipeline conductor (pure logic + headless workers)
+  ├── Worktree manager (git CLI)
+  ├── Transcript persistence (JSONL)
+  └── MCP server (orchestration tools)
+       ↕ file I/O + git
+Filesystem State (~/.sentiph/projects/&lt;project-id&gt;/state/)
+  ├── agents (registry JSONL)
+  ├── transcripts/*.jsonl
+  ├── runs/*.jsonl
+  └── ui-state</code></pre>
+
+  <h3>Boundaries</h3>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Layer</th><th>Owns</th><th>Must NOT contain</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>packages/core</code></td>
+          <td>Domain types, pipeline routing logic, ports (interfaces)</td>
+          <td>React, HTTP, PTY, filesystem, git</td>
+        </tr>
+        <tr>
+          <td><code>apps/api</code></td>
+          <td>PTY sessions, WebSockets, filesystem I/O, git worktrees, process spawning</td>
+          <td>React, browser APIs, UI state</td>
+        </tr>
+        <tr>
+          <td><code>apps/web</code></td>
+          <td>Presentation, client-side interaction state, xterm rendering</td>
+          <td>Direct filesystem/git access, server-only business logic</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout success">
+    <strong>Clean separation.</strong> The ports-and-adapters pattern in <code>packages/core</code> means pipeline routing logic is 100% testable without spawning a single process or touching a file.
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────── 3. HOW IT WORKS -->
+<section id="how-it-works">
+  <h2><span class="num">03</span> How It Operates</h2>
+
+  <h3>Agent Lifecycle</h3>
+  <p>An agent moves through these states, driven by hook callbacks — not polling:</p>
+
+  <div class="flow">
+    <span class="flow-step">created</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step">live</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step">idle</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step">stopped</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step">exited</span>
+  </div>
+  <p style="color:var(--muted);font-size:0.82rem;margin-top:0.3rem;">
+    Side states: <code>queued</code>, <code>blocked</code> (waiting for permission), <code>stale</code> (API restart — PTY lost)
+  </p>
+
+  <p>
+    Claude's hook system (<code>UserPromptSubmit</code>, <code>PreToolUse</code>, <code>Notification</code>, <code>Stop</code>)
+    fires callbacks to the API, which transitions state, auto-names agents from their first prompt, injects channel
+    messages at idle, and persists transcript events.
+  </p>
+
+  <h3>Pipeline Execution</h3>
+  <p>
+    The conductor asks a pure deterministic router (<code>packages/core/application/pipelineRouting.ts</code>) for
+    the next action, then acts on it. All branching logic is isolated in the pure layer.
+  </p>
+
+  <div class="flow" style="flex-wrap:wrap;gap:0.3rem;">
+    <span class="flow-step" style="background:rgba(63,185,80,0.12);border-color:var(--green)">build</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step" style="background:rgba(88,166,255,0.12);border-color:var(--accent)">check ×N</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step" style="background:rgba(210,153,34,0.12);border-color:var(--yellow)">[approval?]</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step" style="background:rgba(188,140,255,0.12);border-color:var(--accent2)">fix ×M</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step" style="background:rgba(88,166,255,0.12);border-color:var(--accent)">check ×N</span>
+    <span class="flow-arrow">→</span>
+    <span class="flow-step" style="background:rgba(63,185,80,0.12);border-color:var(--green)">done</span>
+  </div>
+
+  <div class="table-wrap" style="margin-top:1rem;">
+    <table>
+      <thead>
+        <tr><th>Recipe</th><th>Check rounds</th><th>Fix cycles</th><th>Approval gate</th><th>Use case</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>standard</strong></td>
+          <td>2</td>
+          <td>max 1</td>
+          <td>No</td>
+          <td>Default for most tasks</td>
+        </tr>
+        <tr>
+          <td><strong>quick</strong></td>
+          <td>1</td>
+          <td>0</td>
+          <td>No</td>
+          <td>Trivial changes (typos, docs, renames)</td>
+        </tr>
+        <tr>
+          <td><strong>careful</strong></td>
+          <td>3</td>
+          <td>max 1</td>
+          <td>Yes (human)</td>
+          <td>Risky changes (auth, payments, migrations, secrets)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Worktree Isolation</h3>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Mode</th><th>Working dir</th><th>Git isolation</th><th>Collision risk</th><th>Best for</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>shared</strong></td>
+          <td>Main workspace</td>
+          <td>None</td>
+          <td>High — overlapping edits</td>
+          <td>Read-heavy, small one-off tasks</td>
+        </tr>
+        <tr>
+          <td><strong>worktree</strong></td>
+          <td><code>.sentiph/worktrees/&lt;id&gt;/</code></td>
+          <td>Full — own branch per agent</td>
+          <td>None</td>
+          <td>Parallel edits, larger refactors</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>WebSocket Protocol</h3>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Endpoint</th><th>Direction</th><th>Message types</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>/api/terminals/:id/ws</code></td>
+          <td>Server → client</td>
+          <td><code>state</code>, <code>output</code>, <code>history</code>, <code>rename</code>, <code>activity</code></td>
+        </tr>
+        <tr>
+          <td><code>/api/terminal-events/ws</code></td>
+          <td>Broadcast</td>
+          <td><code>terminal-created</code>, <code>terminal-updated</code>, <code>terminal-deleted</code>, <code>run-updated</code></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────── 4. IMPLEMENTED -->
+<section id="implemented">
+  <h2><span class="num">04</span> What Is (and Isn't) Implemented</h2>
+
+  <h3>Fully Implemented</h3>
+  <ul class="check-list">
+    <li class="done"><strong>Interactive PTY-backed agents on canvas</strong> — create, run, stop, kill, delete, rename</li>
+    <li class="done"><strong>Worktree isolation</strong> — per-agent and per-pipeline-run git branches</li>
+    <li class="done"><strong>Git operations</strong> — status, commit, push, sync, PR merge via <code>gh</code></li>
+    <li class="done"><strong>Hook-based state machine</strong> — no polling; state transitions come from Claude's hook callbacks</li>
+    <li class="done"><strong>Channel messaging</strong> — in-memory queues with idle-based injection</li>
+    <li class="done"><strong>Transcript persistence</strong> — JSONL per session, append-only</li>
+    <li class="done"><strong>Pure deterministic pipeline router</strong> — 100% unit tested, no LLM in control flow</li>
+    <li class="done"><strong>Three recipes with auto-picker</strong> — keyword-driven, deterministic recipe selection</li>
+    <li class="done"><strong>Schema validation on worker output</strong> — headless workers validated before outcomes persist</li>
+    <li class="done"><strong>Bounded fix loops</strong> — no infinite retries; budget-constrained</li>
+    <li class="done"><strong>Human approval gate</strong> — careful recipe pauses for human sign-off</li>
+    <li class="done"><strong>Child agent spawning</strong> — up to 9 per parent, links visible on canvas</li>
+    <li class="done"><strong>MCP tools for orchestrators</strong> — <code>build</code>, <code>spawn_terminal</code>, <code>list_terminals</code>, <code>send_prompt</code>, <code>get_terminal_output</code></li>
+    <li class="done"><strong>Activity view</strong> — git summary, Claude/Codex usage heatmap</li>
+    <li class="done"><strong>UI state persistence</strong> — layout, minimized terminals, widths, sidebar, sounds all round-trip through API</li>
+    <li class="done"><strong>Comprehensive CLI</strong> — <code>sentiph terminal create/list/stop/kill/prune</code>, <code>channel send/list</code>, <code>projects</code>, <code>init</code></li>
+    <li class="done"><strong>Security defaults</strong> — loopback binding, Origin/Host validation, explicit remote access opt-in</li>
+  </ul>
+
+  <h3>Partially Implemented</h3>
+  <ul class="check-list">
+    <li class="partial"><strong>Conversation search</strong> — domain types exist (<code>ConversationSearchResult</code>, <code>searchConversations</code>), no UI wired up</li>
+    <li class="partial"><strong>Conversation export</strong> — <code>conversationExportMarkdown</code> function exists, no API route exposed</li>
+    <li class="partial"><strong>Multi-level group leaders</strong> — system prompt describes <code>group_leader: true</code>, no dedicated tooling or UX validation</li>
+    <li class="partial"><strong>Agent model/effort override</strong> — terminal creation API accepts model/effort, UI always defaults to sonnet/medium</li>
+  </ul>
+
+  <h3>Not Implemented (Deferred by Design)</h3>
+  <ul class="check-list">
+    <li class="missing"><strong>DAG pipelines</strong> — v1 is strictly linear with one conditional branch</li>
+    <li class="missing"><strong>Persistent channels</strong> — messages are in-memory only; lost on API restart</li>
+    <li class="missing"><strong>Auto merge on approval</strong> — approved runs are left on their branch; human merges manually</li>
+    <li class="missing"><strong>Custom recipe editor UI</strong> — only three hardcoded recipes, no UI to create or tune them</li>
+    <li class="missing"><strong>Per-agent cost budgeting</strong> — usage is captured but no spending limits or alerts</li>
+    <li class="missing"><strong>Historical run timeline</strong> — current runs shown, past runs in files but no timeline view</li>
+    <li class="missing"><strong>Agent resource limits</strong> — no memory/CPU caps per agent</li>
+    <li class="missing"><strong>Distributed orchestration</strong> — single machine only</li>
+  </ul>
+</section>
+
+<!-- ───────────────────────────────────────────────── 5. GAPS -->
+<section id="gaps">
+  <h2><span class="num">05</span> Gaps, Weaknesses, and Risks</h2>
+
+  <h3>Code-Level Gaps</h3>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Area</th><th>Finding</th><th>Severity</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Transcript search UI</td>
+          <td>Domain types complete. No React component or route wired to <code>searchConversations</code>.</td>
+          <td><span class="badge badge-blue">Low</span></td>
+        </tr>
+        <tr>
+          <td>Conversation export route</td>
+          <td><code>conversationExportMarkdown</code> exists; no <code>/api/conversations/:sessionId/export</code> endpoint.</td>
+          <td><span class="badge badge-blue">Low</span></td>
+        </tr>
+        <tr>
+          <td>Agent model/effort UI</td>
+          <td>API accepts <code>model</code> and <code>effort</code> at creation; creation dialog in UI always uses defaults.</td>
+          <td><span class="badge badge-yellow">Medium</span></td>
+        </tr>
+        <tr>
+          <td>Pipeline run diff view</td>
+          <td>Runs expose <code>filesTouched</code> and issue lists, but no file-level drill-down or diff viewer in UI.</td>
+          <td><span class="badge badge-yellow">Medium</span></td>
+        </tr>
+        <tr>
+          <td>Stale terminal cleanup UX</td>
+          <td>Requires manual <code>sentiph terminal prune</code>; no auto-prune or one-click UI button.</td>
+          <td><span class="badge badge-blue">Low</span></td>
+        </tr>
+        <tr>
+          <td>Worktree branch merge</td>
+          <td>Approved runs left on branch with no UI indicator or one-click merge helper.</td>
+          <td><span class="badge badge-blue">Low</span></td>
+        </tr>
+        <tr>
+          <td>PTY crash recovery</td>
+          <td>If PTY crashes mid-session, agent is marked <code>stale</code>; no auto-restart.</td>
+          <td><span class="badge badge-blue">Low</span></td>
+        </tr>
+        <tr>
+          <td>Hook write race</td>
+          <td>Fast hook POST and TTY output can theoretically race, potentially dropping a state transition.</td>
+          <td><span class="badge badge-blue">Low</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Architectural Weaknesses</h3>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Issue</th><th>Impact</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>In-memory channel queues</strong></td>
+          <td>Channel messages lost on API restart — unrecoverable inter-agent coordination state.</td>
+          <td><span class="badge badge-yellow">Documented / Known</span></td>
+        </tr>
+        <tr>
+          <td><strong>No workspace lock</strong></td>
+          <td>Two API instances on the same workspace can corrupt JSONL state files.</td>
+          <td><span class="badge badge-red">Undocumented risk</span></td>
+        </tr>
+        <tr>
+          <td><strong>No transcript compaction</strong></td>
+          <td>JSONL files grow unbounded over time; no size-based pruning or rotation.</td>
+          <td><span class="badge badge-yellow">Minor</span></td>
+        </tr>
+        <tr>
+          <td><strong>Per-stage fanout hardcoded</strong></td>
+          <td>Checker fanout always 2×; no per-recipe tuning. Fast to add but blocked until recipe schema is extended.</td>
+          <td><span class="badge badge-blue">Low</span></td>
+        </tr>
+        <tr>
+          <td><strong>Headless worker timeout fixed</strong></td>
+          <td>Default 60 s per worker; no per-stage override. Long build stages may timeout; fast ones burn budget.</td>
+          <td><span class="badge badge-yellow">Medium</span></td>
+        </tr>
+        <tr>
+          <td><strong>No observability</strong></td>
+          <td>No structured logging, no metrics export, no distributed trace. Debugging live issues is console-only.</td>
+          <td><span class="badge badge-yellow">Medium for teams</span></td>
+        </tr>
+        <tr>
+          <td><strong>No authentication</strong></td>
+          <td>Secure by default (loopback only), but if <code>SENTIPH_ALLOW_REMOTE_ACCESS=1</code> is set, the API is fully open.</td>
+          <td><span class="badge badge-red">Risk if remote-access enabled</span></td>
+        </tr>
+        <tr>
+          <td><strong>No resource isolation</strong></td>
+          <td>Child agents and pipeline workers share CPU/RAM with no caps. Noisy neighbor possible under high load.</td>
+          <td><span class="badge badge-yellow">Acceptable for single-user</span></td>
+        </tr>
+        <tr>
+          <td><strong>No pipeline resume after restart</strong></td>
+          <td>In-flight runs are failed with reason <code>api_restart</code> on startup. No checkpoint/resume in v1.</td>
+          <td><span class="badge badge-yellow">Documented / Known</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>UX Gaps</h3>
+  <ul>
+    <li><strong>No visual "paused at approval gate"</strong> — only a status badge, no prominent UI interruption.</li>
+    <li><strong>No bulk operations</strong> — delete/stop 5 stale agents requires 5 individual actions.</li>
+    <li><strong>No agent restart button</strong> — must stop and recreate; any initial-prompt context is lost.</li>
+    <li><strong>No terminal search/filter</strong> — filter by name or state when canvas is crowded.</li>
+    <li><strong>No undo for agent deletion</strong> — immediate, no soft-delete or recycle bin.</li>
+    <li><strong>No agent grouping/labeling</strong> — all agents on one flat canvas; no project folders or tags.</li>
+    <li><strong>No compare/diff view</strong> — can't side-by-side two agents' outputs or file diffs.</li>
+    <li><strong>One-by-one approval</strong> — no "approve all passed runs" batch action.</li>
+  </ul>
+
+  <h3>Testing Gaps</h3>
+  <ul>
+    <li><strong>No integration tests</strong> — mock workers everywhere; no real end-to-end agent-spawn-to-result flow.</li>
+    <li><strong>No UI component tests</strong> — React components have zero unit tests despite <code>@testing-library/react</code> being listed as a dependency.</li>
+    <li><strong>No concurrent WebSocket tests</strong> — no test for multiple clients attached to the same PTY.</li>
+    <li><strong>No hook race condition tests</strong> — simultaneous hook POST and TTY output not tested.</li>
+    <li><strong>No scrollback overflow test</strong> — no explicit test for the 128 KiB cap boundary.</li>
+  </ul>
+</section>
+
+<!-- ───────────────────────────────────────────────── 6. API SURFACE -->
+<section id="api">
+  <h2><span class="num">06</span> API Surface</h2>
+
+  <h3>HTTP Endpoints</h3>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Method + Path</th><th>Purpose</th></tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="2" style="background:var(--surface2);color:var(--muted);font-size:0.75rem;text-transform:uppercase;letter-spacing:0.06em;padding:0.4rem 0.9rem;">Agents</td></tr>
+        <tr><td><code>GET /api/terminal-snapshots</code></td><td>List all agents with state snapshots</td></tr>
+        <tr><td><code>POST /api/terminals</code></td><td>Create agent (initial prompt, worktree mode, parent ID)</td></tr>
+        <tr><td><code>PATCH /api/terminals/:id</code></td><td>Rename agent</td></tr>
+        <tr><td><code>DELETE /api/terminals/:id</code></td><td>Delete + cascade children + cleanup worktrees</td></tr>
+        <tr><td><code>POST /api/terminals/:id/stop</code></td><td>Graceful stop</td></tr>
+        <tr><td><code>POST /api/terminals/:id/kill</code></td><td>Force kill</td></tr>
+        <tr><td><code>POST /api/terminals/prune</code></td><td>Remove stale/stopped/exited records</td></tr>
+        <tr><td colspan="2" style="background:var(--surface2);color:var(--muted);font-size:0.75rem;text-transform:uppercase;letter-spacing:0.06em;padding:0.4rem 0.9rem;">Git &amp; Worktrees</td></tr>
+        <tr><td><code>GET /api/terminals/:id/git/status</code></td><td>Git status snapshot</td></tr>
+        <tr><td><code>POST /api/terminals/:id/git/commit</code></td><td>Create commit</td></tr>
+        <tr><td><code>POST /api/terminals/:id/git/push</code></td><td>Push to remote</td></tr>
+        <tr><td><code>POST /api/terminals/:id/git/sync</code></td><td>Sync with base branch</td></tr>
+        <tr><td><code>GET /api/terminals/:id/git/pr</code></td><td>PR status (via <code>gh</code> CLI)</td></tr>
+        <tr><td><code>POST /api/terminals/:id/git/pr/merge</code></td><td>Merge PR</td></tr>
+        <tr><td colspan="2" style="background:var(--surface2);color:var(--muted);font-size:0.75rem;text-transform:uppercase;letter-spacing:0.06em;padding:0.4rem 0.9rem;">Channels</td></tr>
+        <tr><td><code>GET /api/channels/:id/messages</code></td><td>List messages for agent</td></tr>
+        <tr><td><code>POST /api/channels/:id/messages</code></td><td>Send message</td></tr>
+        <tr><td colspan="2" style="background:var(--surface2);color:var(--muted);font-size:0.75rem;text-transform:uppercase;letter-spacing:0.06em;padding:0.4rem 0.9rem;">Pipelines</td></tr>
+        <tr><td><code>POST /api/runs</code></td><td>Start a run (<code>{ task, recipeId? }</code>)</td></tr>
+        <tr><td><code>GET /api/runs</code></td><td>List run summaries</td></tr>
+        <tr><td><code>GET /api/runs/:runId</code></td><td>Full run with outcomes + result</td></tr>
+        <tr><td><code>POST /api/runs/:runId/cancel</code></td><td>Abort run + cleanup</td></tr>
+        <tr><td><code>POST /api/runs/:runId/approve</code></td><td>Approve (careful recipe)</td></tr>
+        <tr><td><code>POST /api/runs/:runId/reject</code></td><td>Reject (careful recipe)</td></tr>
+        <tr><td><code>GET /api/recipes</code></td><td>List available recipes</td></tr>
+        <tr><td colspan="2" style="background:var(--surface2);color:var(--muted);font-size:0.75rem;text-transform:uppercase;letter-spacing:0.06em;padding:0.4rem 0.9rem;">Activity &amp; Misc</td></tr>
+        <tr><td><code>GET /api/claude/usage</code></td><td>Claude usage snapshot</td></tr>
+        <tr><td><code>GET /api/codex/usage</code></td><td>Codex usage snapshot</td></tr>
+        <tr><td><code>GET /api/github/summary</code></td><td>Git log + PR summary</td></tr>
+        <tr><td><code>GET /api/analytics/usage-heatmap</code></td><td>Heatmap data</td></tr>
+        <tr><td><code>GET/PATCH /api/ui-state</code></td><td>Read/write persisted UI state</td></tr>
+        <tr><td><code>GET /api/setup</code></td><td>Workspace setup status</td></tr>
+        <tr><td><code>POST /api/hooks/*</code></td><td>Claude hook callbacks (session-start, user-prompt-submit, pre-tool-use, notification, stop)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Security</h3>
+  <ul>
+    <li>Binds to <code>127.0.0.1</code> by default — loopback only.</li>
+    <li>Validates <code>Host</code> and <code>Origin</code> headers — enforces same-origin.</li>
+    <li>1 MiB JSON request cap — prevents large payload abuse.</li>
+    <li>Requires explicit <code>SENTIPH_ALLOW_REMOTE_ACCESS=1</code> to expose remotely.</li>
+    <li><span class="badge badge-red">Gap:</span> No authentication token when remote access is enabled. Anyone on the network can control all agents.</li>
+  </ul>
+</section>
+
+<!-- ───────────────────────────────────────────────── 7. TESTING -->
+<section id="testing">
+  <h2><span class="num">07</span> Testing Coverage</h2>
+
+  <p>28 test files, 100+ test cases. Coverage is <strong>deep on domain logic, absent on UI</strong>.</p>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Area</th><th>Coverage</th><th>Notes</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Pipeline routing (pure logic)</td><td><span class="badge badge-green">Excellent</span></td><td>Every <code>nextAction</code> path tested, including edge cases</td></tr>
+        <tr><td>Conductor trajectories</td><td><span class="badge badge-green">Excellent</span></td><td>build→check→fix, approval gate, cancellation all covered</td></tr>
+        <tr><td>Headless worker</td><td><span class="badge badge-green">Good</span></td><td>argv building, JSON parse, schema validation, timeout, abort</td></tr>
+        <tr><td>Concurrency limiter</td><td><span class="badge badge-green">Good</span></td><td>Token bucket scenarios covered</td></tr>
+        <tr><td>Recipe picker</td><td><span class="badge badge-green">Good</span></td><td>Keyword routing verified</td></tr>
+        <tr><td>Git worktree provider</td><td><span class="badge badge-green">Good</span></td><td>Create, release, cleanup tested</td></tr>
+        <tr><td>Session runtime</td><td><span class="badge badge-yellow">Moderate</span></td><td>PTY lifecycle covered; race conditions not</td></tr>
+        <tr><td>WebSocket protocol</td><td><span class="badge badge-yellow">Partial</span></td><td>Message parsing covered; concurrent clients not</td></tr>
+        <tr><td>Usage parsing</td><td><span class="badge badge-green">Good</span></td><td>Claude, Codex, GitHub data parsing tested</td></tr>
+        <tr><td>React components</td><td><span class="badge badge-red">None</span></td><td><code>@testing-library/react</code> installed but 0 component tests</td></tr>
+        <tr><td>End-to-end integration</td><td><span class="badge badge-red">None</span></td><td>No real agent-spawn-to-result flow test</td></tr>
+        <tr><td>API route handlers</td><td><span class="badge badge-yellow">Minimal</span></td><td>Covered implicitly through higher-level tests</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout warn">
+    <strong>Critical testing blind spot:</strong> The React UI has zero unit tests. A canvas rendering regression, a broken terminal connection, or a dialog state bug won't be caught by CI.
+  </div>
+</section>
+
+<!-- ───────────────────────────────────────────────── 8. DEPENDENCIES -->
+<section id="dependencies">
+  <h2><span class="num">08</span> Dependencies &amp; Maturity</h2>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Package</th><th>Version</th><th>Risk</th><th>Notes</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>node-pty</code></td><td>^1.1.0</td><td><span class="badge badge-green">Low</span></td><td>Battle-tested. Used by VS Code itself.</td></tr>
+        <tr><td><code>ws</code></td><td>^8.19.0</td><td><span class="badge badge-green">Low</span></td><td>Mature WebSocket library. Widely deployed.</td></tr>
+        <tr><td><code>react</code></td><td>^19.0.0</td><td><span class="badge badge-green">Low</span></td><td>React 19 stable release.</td></tr>
+        <tr><td><code>d3-force</code></td><td>^3.0.0</td><td><span class="badge badge-green">Low</span></td><td>Stable physics engine; well-understood API.</td></tr>
+        <tr><td><code>xterm</code></td><td>^5.3.0</td><td><span class="badge badge-green">Low</span></td><td>Standard web terminal emulator.</td></tr>
+        <tr><td><code>vite</code></td><td>^6.2.0</td><td><span class="badge badge-green">Low</span></td><td>Current major version. Fast build times.</td></tr>
+        <tr><td><code>vitest</code></td><td>^3.0.7</td><td><span class="badge badge-green">Low</span></td><td>Vite-native test runner. Mature.</td></tr>
+        <tr><td><code>typescript</code></td><td>^5.8.2</td><td><span class="badge badge-green">Low</span></td><td>Current version. Type safety throughout.</td></tr>
+        <tr><td><code>marked</code></td><td>^17.0.4</td><td><span class="badge badge-green">Low</span></td><td>Markdown parser. Sanitized usage.</td></tr>
+        <tr><td><code>lucide-react</code></td><td>^1.7.0</td><td><span class="badge badge-green">Low</span></td><td>Icon library. Lightweight, tree-shakeable.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout success">
+    <strong>Dependency posture is excellent.</strong> No deprecated packages, no version conflicts, no CVEs in the fresh codebase. All dependencies are mature and actively maintained. No vendor lock-in beyond Claude CLI.
+  </div>
+
+  <h3>External CLI Dependencies (optional/graceful degradation)</h3>
+  <ul>
+    <li><code>claude</code> — required for agents; hooks optional</li>
+    <li><code>git</code> — required for worktree mode, optional otherwise</li>
+    <li><code>gh</code> — optional for PR info and merge</li>
+    <li><code>curl</code> — optional for hook testing</li>
+  </ul>
+</section>
+
+<!-- ───────────────────────────────────────────────── 9. SUCCESS FORECAST -->
+<section id="success-forecast">
+  <h2><span class="num">09</span> Success Forecast</h2>
+
+  <div class="verdict">
+    <h3>Overall verdict: Technically sound, product-market fit TBD</h3>
+    <p>
+      The engineering is clean, the core insight is real, and the architecture is intentionally scoped.
+      The biggest uncertainty is not technical — it's whether the target user (a developer managing multiple
+      parallel Claude sessions) is real enough in number to support a product, and whether the workflow
+      friction (setup, worktrees, hook wiring) is low enough to convert curiosity to daily use.
+    </p>
+  </div>
+
+  <h3>Why It Will Succeed</h3>
+  <div class="card-grid">
+    <div class="card green">
+      <h4>Sound core architecture</h4>
+      <p>Deterministic pipeline routing with bounded loops means predictable, debuggable behavior — rare in AI tooling.</p>
+    </div>
+    <div class="card green">
+      <h4>Right timing</h4>
+      <p>The Claude Code ecosystem is growing fast. A native orchestration layer for it fills a real gap that no existing tool addresses.</p>
+    </div>
+    <div class="card green">
+      <h4>Local-first = no cloud friction</h4>
+      <p>No sign-up, no data leaving the machine, no API keys for the tool itself. Zero trust barrier to try it.</p>
+    </div>
+    <div class="card green">
+      <h4>Comprehensive documentation</h4>
+      <p>Rare at this stage. Concepts, guides, and references are thorough — accelerates onboarding and community growth.</p>
+    </div>
+    <div class="card green">
+      <h4>Composable design</h4>
+      <p>The MCP server means agents can orchestrate each other. That's a genuine force multiplier as Claude's capabilities grow.</p>
+    </div>
+    <div class="card green">
+      <h4>Clean test coverage of critical logic</h4>
+      <p>Pipeline routing is 100% unit tested. Regressions in the most complex logic will be caught before they ship.</p>
+    </div>
+  </div>
+
+  <h3>Why It May Struggle</h3>
+  <div class="card-grid">
+    <div class="card red">
+      <h4>Setup friction</h4>
+      <p>Requires Claude CLI, a git repo, hook configuration, and understanding of worktrees. The happy path is not five minutes.</p>
+    </div>
+    <div class="card red">
+      <h4>Local-only limits scale</h4>
+      <p>Can't run on a server, can't share with teammates, can't survive a laptop close. All limitations for professional use.</p>
+    </div>
+    <div class="card red">
+      <h4>No auth on remote access</h4>
+      <p>If a user enables <code>SENTIPH_ALLOW_REMOTE_ACCESS=1</code>, the API is fully open. One misconfiguration = full agent control to anyone on the network.</p>
+    </div>
+    <div class="card red">
+      <h4>In-memory state loss</h4>
+      <p>API restart loses all channel messages and in-flight pipeline runs. Heavy users will hit this quickly.</p>
+    </div>
+    <div class="card yellow">
+      <h4>No UI test coverage</h4>
+      <p>UI regressions won't be caught by CI. Canvas bugs and terminal state edge cases require manual testing on every release.</p>
+    </div>
+    <div class="card yellow">
+      <h4>Narrow pipeline recipes</h4>
+      <p>Three hardcoded recipes cover many cases but not all. Users who need custom flows are blocked until a recipe editor ships.</p>
+    </div>
+    <div class="card yellow">
+      <h4>Small team risk</h4>
+      <p>At 0.1.0, the codebase is one developer's work. Bus factor is high. Velocity depends on the founder's bandwidth.</p>
+    </div>
+    <div class="card yellow">
+      <h4>Dependency on Claude CLI</h4>
+      <p>Anthropic changing their hook interface, session format, or CLI flags could break agent state detection without notice.</p>
+    </div>
+  </div>
+
+  <h3>The Three Critical Unlocks</h3>
+  <p>Success depends most on three decisions, none of them technical:</p>
+  <ol>
+    <li>
+      <strong>Onboarding speed.</strong> The first 10 minutes must work end-to-end without reading docs.
+      Right now there are too many prerequisites.
+    </li>
+    <li>
+      <strong>Persistent channels (or an explicit alternative).</strong>
+      Inter-agent coordination that evaporates on restart is a trust problem. Users must write findings to
+      files — that's a friction bump every session.
+    </li>
+    <li>
+      <strong>Remote/team access with auth.</strong>
+      A dev tool that only runs on one machine is a productivity tool. One that runs on a server and supports
+      teams is a platform. The architecture supports it — the security model doesn't yet.
+    </li>
+  </ol>
+</section>
+
+<!-- ───────────────────────────────────────────────── 10. SCORECARD -->
+<section id="scorecard">
+  <h2><span class="num">10</span> Scorecard</h2>
+
+  <div class="score-grid">
+    <div class="score-item">
+      <span class="label">Architecture</span>
+      <span class="score score-green">A</span>
+      <span class="desc">Clean layering, ports-and-adapters, explicit boundaries</span>
+    </div>
+    <div class="score-item">
+      <span class="label">Core Logic</span>
+      <span class="score score-green">A</span>
+      <span class="desc">Deterministic routing, 100% unit tested, no LLM in control flow</span>
+    </div>
+    <div class="score-item">
+      <span class="label">Documentation</span>
+      <span class="score score-green">A−</span>
+      <span class="desc">Comprehensive for v0.1.0. No ADRs, no troubleshooting guides</span>
+    </div>
+    <div class="score-item">
+      <span class="label">Security</span>
+      <span class="score score-yellow">B+</span>
+      <span class="desc">Defaults are safe. Remote access path has no auth</span>
+    </div>
+    <div class="score-item">
+      <span class="label">Test Coverage</span>
+      <span class="score score-yellow">B−</span>
+      <span class="desc">Deep on domain logic, zero on UI, no integration tests</span>
+    </div>
+    <div class="score-item">
+      <span class="label">Dependencies</span>
+      <span class="score score-green">A</span>
+      <span class="desc">All mature, minimal, no CVEs, no lock-in beyond Claude CLI</span>
+    </div>
+    <div class="score-item">
+      <span class="label">Completeness</span>
+      <span class="score score-yellow">B</span>
+      <span class="desc">Core features solid; search UI, export, model picker missing</span>
+    </div>
+    <div class="score-item">
+      <span class="label">UX</span>
+      <span class="score score-yellow">B−</span>
+      <span class="desc">Canvas and terminals work; no bulk ops, no undo, no search</span>
+    </div>
+    <div class="score-item">
+      <span class="label">Resilience</span>
+      <span class="score score-yellow">C+</span>
+      <span class="desc">In-memory state loss on restart; no pipeline resume; no workspace lock</span>
+    </div>
+    <div class="score-item">
+      <span class="label">Product fit</span>
+      <span class="score score-yellow">B</span>
+      <span class="desc">Strong value prop, high setup friction, local-only limits reach</span>
+    </div>
+  </div>
+
+  <h3>Top 5 Highest-Leverage Improvements</h3>
+  <ol>
+    <li>
+      <strong>Add authentication to remote access mode</strong> — even a static bearer token in config.
+      Right now enabling remote access is a security foot-gun.
+    </li>
+    <li>
+      <strong>Add UI component tests</strong> — the canvas and terminal components are the user-facing heart
+      of the product and have zero automated coverage.
+    </li>
+    <li>
+      <strong>Persist channel messages to disk</strong> — even a simple JSONL file per channel would eliminate
+      the "restart = lost coordination" problem without redesigning anything.
+    </li>
+    <li>
+      <strong>Expose model/effort in the create-agent UI</strong> — the API already supports it; the UI just
+      needs a dropdown. High value for power users, low implementation cost.
+    </li>
+    <li>
+      <strong>Add a workspace lock file</strong> — prevents accidental state corruption if two API instances
+      run against the same project directory.
+    </li>
+  </ol>
+
+  <div class="callout info" style="margin-top:2rem;">
+    <strong>Bottom line:</strong> sentiph is a well-engineered, thoughtfully scoped v1. The core insight
+    — <em>deterministic conductor driving non-deterministic workers</em> — is architecturally sound and
+    produces verifiable, auditable pipelines. The five improvements above are all low-effort, high-impact,
+    and would meaningfully close the gap between "promising prototype" and "daily-driver tool."
+  </div>
+</section>
+
+</main>
+</body>
+</html>
