@@ -47,6 +47,8 @@ type CreateSessionRuntimeOptions = {
   sessionIdleGraceMs?: number;
   scrollbackMaxBytes?: number;
   maxConcurrentSessions?: number;
+  sentiphMcpConfigPath?: string | undefined;
+  sentiphSystemPromptPath?: string | undefined;
   onStateChange?: (terminalId: string, state: AgentRuntimeState, toolName?: string) => void;
   onSessionStart?: (terminalId: string, details: TerminalSessionStartDetails) => void;
   onSessionEnd?: (terminalId: string, details: TerminalSessionEndDetails) => void;
@@ -70,6 +72,8 @@ export const createSessionRuntime = ({
   sessionIdleGraceMs = TERMINAL_SESSION_IDLE_GRACE_MS,
   scrollbackMaxBytes = TERMINAL_SCROLLBACK_MAX_BYTES,
   maxConcurrentSessions = TERMINAL_MAX_CONCURRENT_SESSIONS,
+  sentiphMcpConfigPath,
+  sentiphSystemPromptPath,
   onStateChange,
   onSessionStart,
   onSessionEnd,
@@ -474,8 +478,25 @@ export const createSessionRuntime = ({
     const terminal = terminals.get(session.terminalId);
     const provider = terminal?.agentProvider ?? DEFAULT_AGENT_PROVIDER;
 
-    const bootstrapCommand =
+    const baseCommand =
       TERMINAL_BOOTSTRAP_COMMANDS[provider] ?? TERMINAL_BOOTSTRAP_COMMANDS[DEFAULT_AGENT_PROVIDER];
+
+    // A top-level (no-parent) Claude Code terminal is an orchestrator: it launches
+    // with the Sentiph MCP tools and the orchestrator system prompt. Children
+    // (spawned via the MCP) and other providers keep the plain bootstrap, so the
+    // interactive worker path is unchanged.
+    let bootstrapCommand = baseCommand;
+    const isOrchestrator = provider === "claude-code" && !terminal?.parentTerminalId;
+    if (isOrchestrator && sentiphMcpConfigPath) {
+      const flags = [`--mcp-config "${sentiphMcpConfigPath}"`];
+      if (sentiphSystemPromptPath) {
+        // The prompt file is authored to avoid bash double-quote special chars
+        // (verified at write time), so the substitution is safe.
+        flags.push(`--append-system-prompt "$(cat "${sentiphSystemPromptPath}")"`);
+      }
+      bootstrapCommand = `${baseCommand} ${flags.join(" ")}`;
+    }
+
     appendDebugLog(session, `bootstrap session=${sessionId} command=${bootstrapCommand}`);
     session.pty.write(`${bootstrapCommand}\r`);
 

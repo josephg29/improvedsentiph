@@ -51,8 +51,13 @@ export const handleRunsCollectionRoute: ApiRouteHandler = async (
     return true;
   }
 
+  const parentTerminalId =
+    payload && typeof payload.parentTerminalId === "string" && payload.parentTerminalId.trim()
+      ? payload.parentTerminalId.trim()
+      : undefined;
+
   try {
-    const run = pipelineRuntime.startRun(task, recipeId);
+    const run = pipelineRuntime.startRun(task, recipeId, parentTerminalId);
     writeJson(response, 201, { runId: run.runId, status: run.status }, corsOrigin);
     return true;
   } catch (error) {

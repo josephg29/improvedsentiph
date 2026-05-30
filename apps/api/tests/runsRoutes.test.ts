@@ -105,7 +105,7 @@ describe("handleRunsCollectionRoute", () => {
     );
     expect(result.statusCode).toBe(201);
     expect(result.json()).toEqual({ runId: "run-9", status: "pending" });
-    expect(startRun).toHaveBeenCalledWith("do it", "standard");
+    expect(startRun).toHaveBeenCalledWith("do it", "standard", undefined);
   });
 
   it("rejects an empty task with 400", async () => {

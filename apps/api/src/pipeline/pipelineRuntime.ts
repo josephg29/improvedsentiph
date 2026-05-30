@@ -62,6 +62,7 @@ export interface RunSummary {
   status: RunStatus;
   task: string;
   recipeId: string;
+  parentTerminalId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -73,6 +74,7 @@ const toSummary = (run: Run): RunSummary => ({
   status: run.status,
   task: run.task,
   recipeId: run.recipeId,
+  ...(run.parentTerminalId !== undefined ? { parentTerminalId: run.parentTerminalId } : {}),
   createdAt: run.createdAt,
   updatedAt: run.updatedAt,
 });
@@ -234,7 +236,7 @@ export const createPipelineRuntime = (options: CreatePipelineRuntimeOptions) => 
   };
 
   return {
-    startRun(task: string, recipeId: string = DEFAULT_RECIPE_ID): Run {
+    startRun(task: string, recipeId: string = DEFAULT_RECIPE_ID, parentTerminalId?: string): Run {
       const recipe = getRecipe(recipeId);
       if (!recipe) {
         throw new RuntimeInputError(`Unknown recipe "${recipeId}".`);
@@ -250,6 +252,7 @@ export const createPipelineRuntime = (options: CreatePipelineRuntimeOptions) => 
         outcomes: [],
         createdAt: timestamp,
         updatedAt: timestamp,
+        ...(parentTerminalId ? { parentTerminalId } : {}),
       };
 
       runs.set(runId, run);

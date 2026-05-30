@@ -73,6 +73,7 @@ export interface Run {
   recipeId: string;
   task: string; // the user's request
   status: RunStatus;
+  parentTerminalId?: string; // orchestrator that spawned this build, if any
   workspaceBranch?: string; // sentiph/run-<id>, for the user to merge
   outcomes: WorkerOutcome[]; // append-only log of every worker result
   createdAt: string;

@@ -1,10 +1,15 @@
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import type { IncomingMessage } from "node:http";
-import { join } from "node:path";
+import { createRequire } from "node:module";
+import { dirname, join } from "node:path";
 import type { Duplex } from "node:stream";
+import { fileURLToPath } from "node:url";
 
 import type { TerminalSnapshot } from "@sentiph/core";
 import type { WebSocket } from "ws";
 import { WebSocketServer } from "ws";
+
+import { SENTIPH_SYSTEM_PROMPT, assertSentiphSystemPromptIsShellSafe } from "./sentiphSystemPrompt";
 
 import { createChannelMessaging } from "./terminalRuntime/channelMessaging";
 import {
@@ -58,6 +63,72 @@ export { RuntimeInputError } from "./terminalRuntime/types";
 
 export const MAX_CHILDREN_PER_PARENT = 9;
 
+const resolveCurrentDir = (): string => dirname(fileURLToPath(import.meta.url));
+
+// In a production bundle, sentiphMcp.ts is emitted as a standalone sentiph-mcp.js;
+// in dev (tsx) the TypeScript source is run directly.
+const resolveSentiphMcpServerArgs = (): string[] => {
+  const currentDir = resolveCurrentDir();
+  const jsPath = join(currentDir, "sentiph-mcp.js");
+  if (existsSync(jsPath)) {
+    return [jsPath];
+  }
+  const tsPath = join(currentDir, "sentiphMcp.ts");
+  const requireFromHere = createRequire(import.meta.url);
+  try {
+    const tsxCliPath = join(
+      dirname(requireFromHere.resolve("tsx/package.json")),
+      "dist",
+      "cli.mjs",
+    );
+    if (existsSync(tsxCliPath)) {
+      return [tsxCliPath, tsPath];
+    }
+  } catch {
+    // fall through to the loader form
+  }
+  return ["--import", "tsx/esm", tsPath];
+};
+
+// Best-effort: write the orchestration MCP config + system prompt to disk so a
+// top-level terminal can launch as an orchestrator. Failures degrade to a plain
+// terminal rather than blocking startup.
+const writeOrchestrationFiles = (
+  stateDir: string,
+): { mcpConfigPath?: string; systemPromptPath?: string } => {
+  try {
+    const stateSubdir = join(stateDir, "state");
+    mkdirSync(stateSubdir, { recursive: true });
+
+    const config = {
+      mcpServers: {
+        sentiph: {
+          command: process.execPath,
+          args: resolveSentiphMcpServerArgs(),
+          env: {
+            SENTIPH_API_ORIGIN: process.env.SENTIPH_API_ORIGIN ?? "http://127.0.0.1:8787",
+          },
+        },
+      },
+    };
+    const mcpConfigPath = join(stateSubdir, "sentiph-mcp-config.json");
+    writeFileSync(mcpConfigPath, JSON.stringify(config, null, 2), {
+      encoding: "utf8",
+      mode: 0o600,
+    });
+
+    assertSentiphSystemPromptIsShellSafe(SENTIPH_SYSTEM_PROMPT);
+    const systemPromptPath = join(stateSubdir, "sentiph-system-prompt.txt");
+    writeFileSync(systemPromptPath, SENTIPH_SYSTEM_PROMPT, "utf8");
+
+    return { mcpConfigPath, systemPromptPath };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`[sentiph-mcp] Orchestration tools unavailable: ${message}`);
+    return {};
+  }
+};
+
 export const createTerminalRuntime = ({
   workspaceCwd,
   projectStateDir,
@@ -66,6 +137,8 @@ export const createTerminalRuntime = ({
   maxConcurrentSessions,
 }: CreateTerminalRuntimeOptions) => {
   const stateDir = projectStateDir ?? join(workspaceCwd, ".sentiph");
+  const { mcpConfigPath: sentiphMcpConfigPath, systemPromptPath: sentiphSystemPromptPath } =
+    writeOrchestrationFiles(stateDir);
   const sessions = new Map<string, TerminalSession>();
   const websocketServer = new WebSocketServer({ noServer: true });
   const terminalEventsWebsocketServer = new WebSocketServer({ noServer: true });
@@ -250,6 +323,8 @@ export const createTerminalRuntime = ({
     ptyLogDir,
     transcriptDirectoryPath,
     maxConcurrentSessions: configuredMaxConcurrentSessions,
+    sentiphMcpConfigPath,
+    sentiphSystemPromptPath,
     onStateChange: broadcastTerminalStateChanged,
     onSessionStart: markTerminalRunning,
     onSessionEnd: markTerminalEnded,
