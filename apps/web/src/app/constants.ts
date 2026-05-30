@@ -7,7 +7,6 @@ export const MAX_SIDEBAR_WIDTH = 520;
 
 export const PRIMARY_NAV_ITEMS = [
   { index: 1, label: "Agents" },
-  { index: 2, label: "Pipelines" },
   { index: 3, label: "Activity" },
   { index: 8, label: "Settings" },
 ] as const;

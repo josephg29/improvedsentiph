@@ -14,6 +14,7 @@ export interface RunListItem {
   status: RunStatus;
   task: string;
   recipeId: string;
+  parentTerminalId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -25,6 +26,7 @@ const toListItem = (run: RunListItem | Run): RunListItem => ({
   status: run.status,
   task: run.task,
   recipeId: run.recipeId,
+  ...(run.parentTerminalId !== undefined ? { parentTerminalId: run.parentTerminalId } : {}),
   createdAt: run.createdAt,
   updatedAt: run.updatedAt,
 });
