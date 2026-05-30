@@ -79,6 +79,21 @@
   border-color: #111111;
 }
 
+.pipeline-new-run-recipe {
+  font-family: var(--font-main);
+  font-size: 0.72rem;
+  color: #111111;
+  background: #fafafa;
+  border: 1px solid #cccccc;
+  padding: 0.3rem;
+  letter-spacing: 0.02em;
+}
+
+.pipeline-new-run-recipe:focus {
+  outline: none;
+  border-color: #111111;
+}
+
 .pipeline-new-run-button {
   all: unset;
   cursor: pointer;
@@ -191,6 +206,12 @@
   letter-spacing: 0.04em;
 }
 
+.pipeline-detail-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42rem;
+}
+
 .pipeline-cancel-button {
   all: unset;
   cursor: pointer;
@@ -204,6 +225,21 @@
 .pipeline-cancel-button:hover {
   color: #fafafa;
   background: var(--term-red);
+}
+
+.pipeline-approve-button {
+  all: unset;
+  cursor: pointer;
+  padding: 0.24rem 0.56rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  color: #fafafa;
+  background: var(--term-green);
+  border: 1px solid var(--term-green);
+}
+
+.pipeline-approve-button:hover {
+  background: #1f8a3a;
 }
 
 .pipeline-detail-task {

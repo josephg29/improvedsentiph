@@ -5,6 +5,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { RouteHandlerDependencies } from "../src/createApiServer/routeHelpers";
 import {
+  handleRecipesRoute,
+  handleRunApprovalRoute,
   handleRunCancelRoute,
   handleRunItemRoute,
   handleRunsCollectionRoute,
@@ -214,6 +216,65 @@ describe("handleRunCancelRoute", () => {
     const { result } = await run(handleRunCancelRoute, "GET", "/api/runs/run-1/cancel", {
       cancelRun: vi.fn(),
     });
+    expect(result.statusCode).toBe(405);
+  });
+});
+
+describe("handleRunApprovalRoute", () => {
+  it("approves an awaiting run with 200", async () => {
+    const approveRun = vi.fn(() => true);
+    const { result } = await run(handleRunApprovalRoute, "POST", "/api/runs/run-1/approve", {
+      approveRun,
+    });
+    expect(result.statusCode).toBe(200);
+    expect(result.json()).toEqual({ ok: true });
+    expect(approveRun).toHaveBeenCalledWith("run-1");
+  });
+
+  it("rejects an awaiting run with 200", async () => {
+    const rejectRun = vi.fn(() => true);
+    const { result } = await run(handleRunApprovalRoute, "POST", "/api/runs/run-1/reject", {
+      rejectRun,
+    });
+    expect(result.statusCode).toBe(200);
+    expect(rejectRun).toHaveBeenCalledWith("run-1");
+  });
+
+  it("returns 404 when the run does not exist", async () => {
+    const { result } = await run(handleRunApprovalRoute, "POST", "/api/runs/missing/approve", {
+      approveRun: vi.fn(() => false),
+      getRun: vi.fn(() => null),
+    });
+    expect(result.statusCode).toBe(404);
+  });
+
+  it("returns 409 when the run is not awaiting approval", async () => {
+    const { result } = await run(handleRunApprovalRoute, "POST", "/api/runs/run-1/approve", {
+      approveRun: vi.fn(() => false),
+      getRun: vi.fn(() => ({ runId: "run-1", status: "passed" })),
+    });
+    expect(result.statusCode).toBe(409);
+  });
+
+  it("returns 405 for a non-POST method", async () => {
+    const { result } = await run(handleRunApprovalRoute, "GET", "/api/runs/run-1/approve", {
+      approveRun: vi.fn(),
+    });
+    expect(result.statusCode).toBe(405);
+  });
+});
+
+describe("handleRecipesRoute", () => {
+  it("lists recipes on GET", async () => {
+    const { handled, result } = await run(handleRecipesRoute, "GET", "/api/recipes", {});
+    expect(handled).toBe(true);
+    expect(result.statusCode).toBe(200);
+    const recipes = result.json() as Array<{ id: string }>;
+    expect(recipes.map((recipe) => recipe.id)).toEqual(["standard", "quick", "careful"]);
+  });
+
+  it("returns 405 for a non-GET method", async () => {
+    const { result } = await run(handleRecipesRoute, "POST", "/api/recipes", {});
     expect(result.statusCode).toBe(405);
   });
 });

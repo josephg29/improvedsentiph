@@ -5,6 +5,11 @@ import { RunStatusBadge } from "./RunStatusBadge";
 
 const ACTIVE_STATUSES = new Set(["pending", "building", "checking", "fixing"]);
 
+interface ApprovalActions {
+  approve: (runId: string) => void;
+  reject: (runId: string) => void;
+}
+
 const IssueList = ({ title, issues }: { title: string; issues: IssueFinding[] }) => {
   if (issues.length === 0) {
     return null;
@@ -37,9 +42,11 @@ const IssueList = ({ title, issues }: { title: string; issues: IssueFinding[] })
 interface RunDetailProps {
   run: Run;
   onCancel: (runId: string) => void;
+  approval: ApprovalActions;
 }
 
-export const RunDetail = ({ run, onCancel }: RunDetailProps) => {
+export const RunDetail = ({ run, onCancel, approval }: RunDetailProps) => {
+  const isAwaitingApproval = run.status === "awaiting_approval";
   const isActive = ACTIVE_STATUSES.has(run.status);
   const result = run.result;
 
@@ -50,15 +57,34 @@ export const RunDetail = ({ run, onCancel }: RunDetailProps) => {
           <RunStatusBadge status={run.status} />
           <span className="pipeline-detail-id">{run.runId}</span>
         </div>
-        {isActive ? (
-          <button
-            className="pipeline-cancel-button"
-            onClick={() => onCancel(run.runId)}
-            type="button"
-          >
-            Cancel
-          </button>
-        ) : null}
+        <div className="pipeline-detail-actions">
+          {isAwaitingApproval ? (
+            <>
+              <button
+                className="pipeline-approve-button"
+                onClick={() => approval.approve(run.runId)}
+                type="button"
+              >
+                Approve
+              </button>
+              <button
+                className="pipeline-cancel-button"
+                onClick={() => approval.reject(run.runId)}
+                type="button"
+              >
+                Reject
+              </button>
+            </>
+          ) : isActive ? (
+            <button
+              className="pipeline-cancel-button"
+              onClick={() => onCancel(run.runId)}
+              type="button"
+            >
+              Cancel
+            </button>
+          ) : null}
+        </div>
       </header>
 
       <p className="pipeline-detail-task">{run.task}</p>

@@ -2,6 +2,7 @@ import type { Run, RunStatus } from "@sentiph/core";
 import { useCallback, useEffect, useState } from "react";
 
 import {
+  buildRunApprovalUrl,
   buildRunCancelUrl,
   buildRunItemUrl,
   buildRunsUrl,
@@ -48,6 +49,8 @@ export interface UsePipelineRuns {
   error: string | null;
   startRun: (task: string, recipeId?: string) => Promise<void>;
   cancelRun: (runId: string) => Promise<void>;
+  approveRun: (runId: string) => Promise<void>;
+  rejectRun: (runId: string) => Promise<void>;
   selectRun: (runId: string) => Promise<void>;
 }
 
@@ -143,18 +146,39 @@ export const usePipelineRuns = (): UsePipelineRuns => {
     }
   }, []);
 
-  const cancelRun = useCallback(async (runId: string) => {
+  const post = useCallback(async (url: string) => {
     try {
-      await fetch(buildRunCancelUrl(runId), { method: "POST" });
+      await fetch(url, { method: "POST" });
     } catch (caught) {
       setError(messageOf(caught));
     }
   }, []);
+
+  const cancelRun = useCallback((runId: string) => post(buildRunCancelUrl(runId)), [post]);
+  const approveRun = useCallback(
+    (runId: string) => post(buildRunApprovalUrl(runId, "approve")),
+    [post],
+  );
+  const rejectRun = useCallback(
+    (runId: string) => post(buildRunApprovalUrl(runId, "reject")),
+    [post],
+  );
 
   const runs = Object.values(summaries).sort((left, right) =>
     right.createdAt.localeCompare(left.createdAt),
   );
   const selectedRun = selectedRunId ? (details[selectedRunId] ?? null) : null;
 
-  return { runs, selectedRunId, selectedRun, isStarting, error, startRun, cancelRun, selectRun };
+  return {
+    runs,
+    selectedRunId,
+    selectedRun,
+    isStarting,
+    error,
+    startRun,
+    cancelRun,
+    approveRun,
+    rejectRun,
+    selectRun,
+  };
 };

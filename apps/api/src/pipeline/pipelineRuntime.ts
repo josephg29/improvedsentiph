@@ -101,6 +101,7 @@ export const createPipelineRuntime = (options: CreatePipelineRuntimeOptions) => 
   const runs = loaded.runs;
   const controllers = new Map<string, AbortController>();
   const inflight = new Set<Promise<void>>();
+  const pendingApprovals = new Map<string, (decision: "approved" | "rejected") => void>();
   const persistence = createRunStorePersistence(stateDir);
 
   // Persist runs reconciled to failed (api_restart) back to disk.
@@ -125,6 +126,35 @@ export const createPipelineRuntime = (options: CreatePipelineRuntimeOptions) => 
       candidate += 1;
     }
     return `${RUN_ID_PREFIX}${candidate}`;
+  };
+
+  // The human-approval gate: the conductor parks here; approveRun/rejectRun (or
+  // an abort) resolves it. One pending decision per run at a time.
+  const makeAwaitApproval =
+    (signal: AbortSignal) =>
+    (_stageId: string, run: Run): Promise<"approved" | "rejected"> =>
+      new Promise((resolve) => {
+        if (signal.aborted) {
+          resolve("rejected");
+          return;
+        }
+        const settle = (decision: "approved" | "rejected") => {
+          pendingApprovals.delete(run.runId);
+          signal.removeEventListener("abort", onAbort);
+          resolve(decision);
+        };
+        const onAbort = () => settle("rejected");
+        pendingApprovals.set(run.runId, settle);
+        signal.addEventListener("abort", onAbort, { once: true });
+      });
+
+  const resolveApproval = (runId: string, decision: "approved" | "rejected"): boolean => {
+    const settle = pendingApprovals.get(runId);
+    if (!settle) {
+      return false;
+    }
+    settle(decision);
+    return true;
   };
 
   const executeRun = async (initialRun: Run, signal: AbortSignal) => {
@@ -180,6 +210,7 @@ export const createPipelineRuntime = (options: CreatePipelineRuntimeOptions) => 
           },
           now,
           signal,
+          awaitApproval: makeAwaitApproval(signal),
         });
       } catch (error) {
         current = {
@@ -256,6 +287,14 @@ export const createPipelineRuntime = (options: CreatePipelineRuntimeOptions) => 
       }
       controller.abort();
       return true;
+    },
+
+    approveRun(runId: string): boolean {
+      return resolveApproval(runId, "approved");
+    },
+
+    rejectRun(runId: string): boolean {
+      return resolveApproval(runId, "rejected");
     },
 
     async close() {

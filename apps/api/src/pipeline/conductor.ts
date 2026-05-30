@@ -31,6 +31,8 @@ export interface PipelineHooks {
   onUpdate: (run: Run) => void;
   now: () => string;
   signal: AbortSignal;
+  /** Block at a human-approval gate until the operator approves or rejects. */
+  awaitApproval?: (stageId: string, run: Run) => Promise<"approved" | "rejected">;
 }
 
 export const statusForStage = (stage: RecipeStage): RunStatus => {
@@ -120,6 +122,26 @@ export const runPipeline = async (
           : {}),
       });
       return run;
+    }
+
+    if (action.kind === "await_approval") {
+      update({ ...run, status: "awaiting_approval", updatedAt: hooks.now() });
+      const decision = hooks.awaitApproval
+        ? await hooks.awaitApproval(action.stageId, run)
+        : "rejected";
+      if (hooks.signal.aborted) {
+        return finishCancelled();
+      }
+      const approvalOutcome: WorkerOutcome = {
+        stageId: action.stageId,
+        index: 0,
+        ok: decision === "approved",
+        startedAt: hooks.now(),
+        endedAt: hooks.now(),
+        ...(decision === "rejected" ? { error: "rejected by operator" } : {}),
+      };
+      update({ ...run, outcomes: [...run.outcomes, approvalOutcome], updatedAt: hooks.now() });
+      continue;
     }
 
     const stage = recipe.stages.find((candidate) => candidate.id === action.stageId);

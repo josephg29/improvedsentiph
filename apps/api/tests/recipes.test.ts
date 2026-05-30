@@ -38,6 +38,23 @@ describe("standard recipe", () => {
 
   it("returns undefined for an unknown recipe and lists the known ones", () => {
     expect(getRecipe("nope")).toBeUndefined();
-    expect(listRecipes().map((recipe) => recipe.id)).toEqual(["standard"]);
+    expect(listRecipes().map((recipe) => recipe.id)).toEqual(["standard", "quick", "careful"]);
+  });
+
+  it("quick skips the fix loop", () => {
+    const quick = getRecipe("quick");
+    expect(quick?.maxFixCycles).toBe(0);
+    expect(quick?.stages.map((stage) => stage.role)).toEqual(["build", "check"]);
+  });
+
+  it("careful adds three checkers and a human approval gate", () => {
+    const careful = getRecipe("careful");
+    expect(careful?.stages.map((stage) => stage.role)).toEqual([
+      "build",
+      "check",
+      "fix",
+      "approval",
+    ]);
+    expect(careful?.stages.find((stage) => stage.role === "check")?.fanout).toBe(3);
   });
 });

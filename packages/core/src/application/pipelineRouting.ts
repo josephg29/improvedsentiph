@@ -25,12 +25,14 @@ import type {
 
 export type NextAction =
   | { kind: "run_stage"; stageId: StageId }
+  | { kind: "await_approval"; stageId: StageId }
   | { kind: "done"; result: RunResult };
 
 type TerminalStatus = "passed" | "completed_with_issues" | "failed";
 
 type Classification =
   | { kind: "run_stage"; stageId: StageId }
+  | { kind: "await_approval"; stageId: StageId }
   | { kind: "done"; status: TerminalStatus };
 
 const stageByRole = (recipe: Recipe, role: StageRole) =>
@@ -185,10 +187,40 @@ export const checkersPassed = (outcomes: WorkerOutcome[], stageId: StageId): boo
   return true;
 };
 
+const lastIndexOfStage = (outcomes: WorkerOutcome[], stageId: StageId): number => {
+  for (let index = outcomes.length - 1; index >= 0; index -= 1) {
+    if (outcomes[index]?.stageId === stageId) {
+      return index;
+    }
+  }
+  return -1;
+};
+
+/**
+ * The human gate's verdict on the most recently verified work: "pending" if the
+ * passing check round has not been signed off yet, else approved/rejected from
+ * the approval outcome recorded after that round.
+ */
+const latestApprovalDecision = (
+  outcomes: WorkerOutcome[],
+  approvalStageId: StageId,
+  checkStageId: StageId,
+): "pending" | "approved" | "rejected" => {
+  const lastCheckIndex = lastIndexOfStage(outcomes, checkStageId);
+  for (let index = outcomes.length - 1; index > lastCheckIndex; index -= 1) {
+    const outcome = outcomes[index];
+    if (outcome?.stageId === approvalStageId) {
+      return outcome.ok ? "approved" : "rejected";
+    }
+  }
+  return "pending";
+};
+
 const classify = (recipe: Recipe, run: Run): Classification => {
   const buildStage = requireStageByRole(recipe, "build");
   const checkStage = requireStageByRole(recipe, "check");
   const fixStage = stageByRole(recipe, "fix");
+  const approvalStage = stageByRole(recipe, "approval");
 
   const buildOutcomes = outcomesForStage(run.outcomes, buildStage.id);
   if (buildOutcomes.length === 0) {
@@ -215,6 +247,16 @@ const classify = (recipe: Recipe, run: Run): Classification => {
   }
 
   if (checkersPassed(run.outcomes, checkStage.id)) {
+    // Verified work. If the recipe has a human gate, require sign-off first.
+    if (approvalStage) {
+      const decision = latestApprovalDecision(run.outcomes, approvalStage.id, checkStage.id);
+      if (decision === "pending") {
+        return { kind: "await_approval", stageId: approvalStage.id };
+      }
+      if (decision === "rejected") {
+        return { kind: "done", status: "completed_with_issues" };
+      }
+    }
     return { kind: "done", status: "passed" };
   }
 
@@ -234,6 +276,9 @@ export const nextAction = (recipe: Recipe, run: Run): NextAction => {
   const classification = classify(recipe, run);
   if (classification.kind === "run_stage") {
     return { kind: "run_stage", stageId: classification.stageId };
+  }
+  if (classification.kind === "await_approval") {
+    return { kind: "await_approval", stageId: classification.stageId };
   }
   return { kind: "done", result: converge(recipe, run) };
 };

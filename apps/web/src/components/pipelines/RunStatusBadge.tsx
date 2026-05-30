@@ -7,6 +7,7 @@ const STATUS_META: Record<RunStatus, { label: string; tone: Tone }> = {
   building: { label: "Building", tone: "running" },
   checking: { label: "Checking", tone: "running" },
   fixing: { label: "Fixing", tone: "running" },
+  awaiting_approval: { label: "Awaiting approval", tone: "issues" },
   passed: { label: "Passed", tone: "passed" },
   completed_with_issues: { label: "Issues", tone: "issues" },
   failed: { label: "Failed", tone: "failed" },

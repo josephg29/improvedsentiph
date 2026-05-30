@@ -23,7 +23,13 @@ import type {
   TerminalRuntime,
 } from "./routeHelpers";
 import { writeJson, writeNoContent } from "./routeHelpers";
-import { handleRunCancelRoute, handleRunItemRoute, handleRunsCollectionRoute } from "./runsRoutes";
+import {
+  handleRecipesRoute,
+  handleRunApprovalRoute,
+  handleRunCancelRoute,
+  handleRunItemRoute,
+  handleRunsCollectionRoute,
+} from "./runsRoutes";
 import {
   getRequestCorsOrigin,
   isAllowedHostHeader,
@@ -95,7 +101,11 @@ const API_ROUTE_MAP: ReadonlyMap<string, readonly ApiRouteHandler[]> = new Map([
       handleTerminalItemRoute,
     ],
   ],
-  ["runs", [handleRunsCollectionRoute, handleRunCancelRoute, handleRunItemRoute]],
+  [
+    "runs",
+    [handleRunsCollectionRoute, handleRunCancelRoute, handleRunApprovalRoute, handleRunItemRoute],
+  ],
+  ["recipes", [handleRecipesRoute]],
   ["agents", [handleAgentGitRoute, handleAgentGitPullRequestRoute]],
 ]);
 

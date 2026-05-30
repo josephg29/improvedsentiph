@@ -102,6 +102,19 @@ export const buildRunCancelUrl = (runId: string, runtimeBaseUrl = readRuntimeBas
   return buildAbsoluteUrl(runtimeBaseUrl, path);
 };
 
+export const buildRunApprovalUrl = (
+  runId: string,
+  decision: "approve" | "reject",
+  runtimeBaseUrl = readRuntimeBaseUrl(),
+) => {
+  const path = `/api/runs/${encodeURIComponent(runId)}/${decision}`;
+  if (!runtimeBaseUrl) {
+    return path;
+  }
+
+  return buildAbsoluteUrl(runtimeBaseUrl, path);
+};
+
 export const buildCodexUsageUrl = (runtimeBaseUrl = readRuntimeBaseUrl()) => {
   if (!runtimeBaseUrl) {
     return "/api/codex/usage";

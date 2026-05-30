@@ -1,10 +1,12 @@
-import { DEFAULT_RECIPE_ID, getRecipe } from "../pipeline/recipes";
+import { pickRecipe } from "../pipeline/recipePicker";
+import { getRecipe, listRecipes } from "../pipeline/recipes";
 import { RuntimeInputError } from "../terminalRuntime";
 import type { ApiRouteHandler } from "./routeHelpers";
 import { readJsonBodyOrWriteError, writeJson, writeMethodNotAllowed } from "./routeHelpers";
 
 const RUN_ITEM_PATH_PATTERN = /^\/api\/runs\/([^/]+)$/;
 const RUN_CANCEL_PATH_PATTERN = /^\/api\/runs\/([^/]+)\/cancel$/;
+const RUN_APPROVAL_PATH_PATTERN = /^\/api\/runs\/([^/]+)\/(approve|reject)$/;
 
 export const handleRunsCollectionRoute: ApiRouteHandler = async (
   { request, response, requestUrl, corsOrigin },
@@ -36,10 +38,14 @@ export const handleRunsCollectionRoute: ApiRouteHandler = async (
     return true;
   }
 
+  const requestedRecipeId =
+    payload && typeof payload.recipeId === "string" ? payload.recipeId.trim() : "";
+  // An explicit recipe is honored; otherwise (absent or "auto") the deterministic
+  // picker chooses based on the task.
   const recipeId =
-    payload && typeof payload.recipeId === "string" && payload.recipeId.trim().length > 0
-      ? payload.recipeId.trim()
-      : DEFAULT_RECIPE_ID;
+    requestedRecipeId.length > 0 && requestedRecipeId !== "auto"
+      ? requestedRecipeId
+      : pickRecipe(task);
   if (!getRecipe(recipeId)) {
     writeJson(response, 400, { error: `Unknown recipe "${recipeId}".` }, corsOrigin);
     return true;
@@ -109,5 +115,60 @@ export const handleRunItemRoute: ApiRouteHandler = async (
   }
 
   writeJson(response, 200, run, corsOrigin);
+  return true;
+};
+
+export const handleRunApprovalRoute: ApiRouteHandler = async (
+  { request, response, requestUrl, corsOrigin },
+  { pipelineRuntime },
+) => {
+  const match = requestUrl.pathname.match(RUN_APPROVAL_PATH_PATTERN);
+  if (!match) {
+    return false;
+  }
+
+  if (request.method !== "POST") {
+    writeMethodNotAllowed(response, corsOrigin);
+    return true;
+  }
+
+  const runId = decodeURIComponent(match[1] ?? "");
+  const decided =
+    match[2] === "approve" ? pipelineRuntime.approveRun(runId) : pipelineRuntime.rejectRun(runId);
+  if (decided) {
+    writeJson(response, 200, { ok: true }, corsOrigin);
+    return true;
+  }
+
+  if (!pipelineRuntime.getRun(runId)) {
+    writeJson(response, 404, { error: "Run not found." }, corsOrigin);
+    return true;
+  }
+
+  writeJson(response, 409, { error: "Run is not awaiting approval." }, corsOrigin);
+  return true;
+};
+
+export const handleRecipesRoute: ApiRouteHandler = async ({
+  request,
+  response,
+  requestUrl,
+  corsOrigin,
+}) => {
+  if (requestUrl.pathname !== "/api/recipes") {
+    return false;
+  }
+
+  if (request.method !== "GET") {
+    writeMethodNotAllowed(response, corsOrigin);
+    return true;
+  }
+
+  const recipes = listRecipes().map((recipe) => ({
+    id: recipe.id,
+    title: recipe.title,
+    stages: recipe.stages.map((stage) => stage.role),
+  }));
+  writeJson(response, 200, recipes, corsOrigin);
   return true;
 };

@@ -4,14 +4,22 @@ import { usePipelineRuns } from "../app/pipelines/usePipelineRuns";
 import { RunDetail } from "./pipelines/RunDetail";
 import { RunStatusBadge } from "./pipelines/RunStatusBadge";
 
+const RECIPE_OPTIONS = [
+  { value: "auto", label: "Auto (pick for me)" },
+  { value: "standard", label: "Standard" },
+  { value: "quick", label: "Quick" },
+  { value: "careful", label: "Careful (human gate)" },
+];
+
 const NewRunForm = ({
   isStarting,
   onStart,
 }: {
   isStarting: boolean;
-  onStart: (task: string) => void;
+  onStart: (task: string, recipeId: string) => void;
 }) => {
   const [task, setTask] = useState("");
+  const [recipeId, setRecipeId] = useState("auto");
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
@@ -19,7 +27,7 @@ const NewRunForm = ({
     if (!trimmed || isStarting) {
       return;
     }
-    onStart(trimmed);
+    onStart(trimmed, recipeId);
     setTask("");
   };
 
@@ -36,6 +44,18 @@ const NewRunForm = ({
         rows={3}
         value={task}
       />
+      <select
+        aria-label="Recipe"
+        className="pipeline-new-run-recipe"
+        onChange={(event) => setRecipeId(event.target.value)}
+        value={recipeId}
+      >
+        {RECIPE_OPTIONS.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
       <button
         className="pipeline-new-run-button"
         disabled={isStarting || task.trim().length === 0}
@@ -48,8 +68,18 @@ const NewRunForm = ({
 };
 
 export const PipelinesPrimaryView = () => {
-  const { runs, selectedRunId, selectedRun, isStarting, error, startRun, cancelRun, selectRun } =
-    usePipelineRuns();
+  const {
+    runs,
+    selectedRunId,
+    selectedRun,
+    isStarting,
+    error,
+    startRun,
+    cancelRun,
+    approveRun,
+    rejectRun,
+    selectRun,
+  } = usePipelineRuns();
 
   return (
     <section className="pipelines-view" aria-label="Pipelines">
@@ -63,7 +93,10 @@ export const PipelinesPrimaryView = () => {
 
       <div className="pipelines-body">
         <aside className="pipelines-list" aria-label="Runs">
-          <NewRunForm isStarting={isStarting} onStart={(task) => void startRun(task)} />
+          <NewRunForm
+            isStarting={isStarting}
+            onStart={(task, recipeId) => void startRun(task, recipeId)}
+          />
           {error ? <p className="pipelines-error">{error}</p> : null}
           <ul className="pipeline-run-rows">
             {runs.length === 0 ? (
@@ -88,7 +121,14 @@ export const PipelinesPrimaryView = () => {
 
         <main className="pipelines-detail">
           {selectedRun ? (
-            <RunDetail onCancel={(runId) => void cancelRun(runId)} run={selectedRun} />
+            <RunDetail
+              approval={{
+                approve: (runId) => void approveRun(runId),
+                reject: (runId) => void rejectRun(runId),
+              }}
+              onCancel={(runId) => void cancelRun(runId)}
+              run={selectedRun}
+            />
           ) : (
             <div className="pipelines-detail-empty">
               {selectedRunId

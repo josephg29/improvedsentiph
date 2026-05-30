@@ -284,3 +284,67 @@ describe("converge", () => {
     expect(converge(STANDARD, run).workspaceBranch).toBe("sentiph/run-1");
   });
 });
+
+const CAREFUL: Recipe = {
+  id: "careful",
+  title: "Careful",
+  maxFixCycles: 1,
+  stages: [
+    STANDARD.stages[0] as Recipe["stages"][number], // build
+    STANDARD.stages[1] as Recipe["stages"][number], // check (fanout 2)
+    STANDARD.stages[2] as Recipe["stages"][number], // fix
+    {
+      id: "approval",
+      role: "approval",
+      systemPrompt: "approve",
+      model: "sonnet",
+      effort: "medium",
+      toolPolicy: "read-only",
+      outputSchema: {},
+    },
+  ],
+};
+
+const approval = (ok: boolean) => outcome("approval", 0, ok, { approved: ok });
+
+describe("human approval gate", () => {
+  it("awaits approval once the work is verified", () => {
+    const run = makeRun([buildOk(), checkPass(0), checkPass(1)]);
+    expect(nextAction(CAREFUL, run)).toEqual({ kind: "await_approval", stageId: "approval" });
+  });
+
+  it("passes after approval", () => {
+    const run = makeRun([buildOk(), checkPass(0), checkPass(1), approval(true)]);
+    const action = nextAction(CAREFUL, run);
+    expect(action.kind).toBe("done");
+    if (action.kind === "done") {
+      expect(action.result.status).toBe("passed");
+    }
+  });
+
+  it("completes with issues when rejected", () => {
+    const run = makeRun([buildOk(), checkPass(0), checkPass(1), approval(false)]);
+    const action = nextAction(CAREFUL, run);
+    expect(action.kind).toBe("done");
+    if (action.kind === "done") {
+      expect(action.result.status).toBe("completed_with_issues");
+    }
+  });
+
+  it("does not reach the gate while the work still needs a fix", () => {
+    const run = makeRun([buildOk(), checkNeedsFix(0, [HIGH]), checkNeedsFix(1, [HIGH])]);
+    expect(nextAction(CAREFUL, run)).toEqual({ kind: "run_stage", stageId: "fix" });
+  });
+
+  it("gates again after a fix re-verifies", () => {
+    const run = makeRun([
+      buildOk(),
+      checkNeedsFix(0, [HIGH]),
+      checkNeedsFix(1, [HIGH]),
+      fixOk(),
+      checkPass(0),
+      checkPass(1),
+    ]);
+    expect(nextAction(CAREFUL, run)).toEqual({ kind: "await_approval", stageId: "approval" });
+  });
+});

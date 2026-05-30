@@ -7,7 +7,7 @@
  * decisions are computed from these types by `application/pipelineRouting.ts`.
  */
 
-export type StageRole = "build" | "check" | "fix";
+export type StageRole = "build" | "check" | "fix" | "approval";
 
 export type StageId = string; // e.g. "build", "check", "fix"
 
@@ -38,6 +38,7 @@ export type RunStatus =
   | "building"
   | "checking"
   | "fixing"
+  | "awaiting_approval"
   | "passed"
   | "completed_with_issues"
   | "failed"

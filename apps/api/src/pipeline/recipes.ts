@@ -97,9 +97,67 @@ export const STANDARD_RECIPE: Recipe = {
   ],
 };
 
+const [BUILD_STAGE, , FIX_STAGE] = STANDARD_RECIPE.stages;
+
+/** Quick: one builder, one checker, no fix loop — for trivial, low-risk tasks. */
+export const QUICK_RECIPE: Recipe = {
+  id: "quick",
+  title: "Quick (build → check)",
+  maxFixCycles: 0,
+  stages: [
+    BUILD_STAGE as Recipe["stages"][number],
+    {
+      id: "check",
+      role: "check",
+      model: "sonnet",
+      effort: "low",
+      fanout: 1,
+      toolPolicy: "read-only",
+      systemPrompt: STANDARD_RECIPE.stages[1]?.systemPrompt ?? "",
+      outputSchema: STANDARD_RECIPE.stages[1]?.outputSchema ?? {},
+    },
+  ],
+};
+
+/** Careful: three checkers and a human approval gate before sign-off — for risky tasks. */
+export const CAREFUL_RECIPE: Recipe = {
+  id: "careful",
+  title: "Careful (build → check ×3 → approve)",
+  maxFixCycles: 1,
+  stages: [
+    BUILD_STAGE as Recipe["stages"][number],
+    {
+      id: "check",
+      role: "check",
+      model: "sonnet",
+      effort: "high",
+      fanout: 3,
+      toolPolicy: "read-only",
+      systemPrompt: STANDARD_RECIPE.stages[1]?.systemPrompt ?? "",
+      outputSchema: STANDARD_RECIPE.stages[1]?.outputSchema ?? {},
+    },
+    FIX_STAGE as Recipe["stages"][number],
+    {
+      id: "approval",
+      role: "approval",
+      model: "sonnet",
+      effort: "low",
+      toolPolicy: "read-only",
+      systemPrompt:
+        "Human approval gate: the run pauses here until an operator approves or rejects the " +
+        "verified work. No worker runs for this stage.",
+      outputSchema: {},
+    },
+  ],
+};
+
 export const DEFAULT_RECIPE_ID = STANDARD_RECIPE.id;
 
-const RECIPES: ReadonlyMap<string, Recipe> = new Map([[STANDARD_RECIPE.id, STANDARD_RECIPE]]);
+const RECIPES: ReadonlyMap<string, Recipe> = new Map([
+  [STANDARD_RECIPE.id, STANDARD_RECIPE],
+  [QUICK_RECIPE.id, QUICK_RECIPE],
+  [CAREFUL_RECIPE.id, CAREFUL_RECIPE],
+]);
 
 export const getRecipe = (recipeId: string): Recipe | undefined => RECIPES.get(recipeId);
 

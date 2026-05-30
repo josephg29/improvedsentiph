@@ -8,7 +8,7 @@ import {
   runPipeline,
   statusForStage,
 } from "../src/pipeline/conductor";
-import { STANDARD_RECIPE } from "../src/pipeline/recipes";
+import { CAREFUL_RECIPE, STANDARD_RECIPE } from "../src/pipeline/recipes";
 
 const HIGH: IssueFinding = { severity: "high", location: "a.ts:1", problem: "null deref" };
 
@@ -63,9 +63,10 @@ const scriptedRunner = (
   const fn: RunStageFn = async (stage) => {
     order.push(stage.id);
     onCall?.(stage.role);
-    const queue = queues[stage.role] ?? [];
-    const outcomes = queue[cursor[stage.role] ?? 0] ?? [];
-    cursor[stage.role] = (cursor[stage.role] ?? 0) + 1;
+    const role = stage.role as "build" | "check" | "fix";
+    const queue = queues[role] ?? [];
+    const outcomes = queue[cursor[role] ?? 0] ?? [];
+    cursor[role] = (cursor[role] ?? 0) + 1;
     return outcomes;
   };
   return { fn, order };
@@ -238,6 +239,33 @@ describe("renderStagePrompt", () => {
     const prompt = renderStagePrompt(STANDARD_RECIPE, stageByRole("fix"), run);
     expect(prompt).toContain("a.ts:1");
     expect(prompt).toContain("null deref");
+  });
+});
+
+describe("runPipeline human approval gate", () => {
+  it("parks at the gate then passes on approval", async () => {
+    const updates: Run[] = [];
+    const { fn, order } = scriptedRunner({ build: [buildOk()], check: [checkPass()] });
+    const final = await runPipeline(CAREFUL_RECIPE, baseRun({ recipeId: "careful" }), fn, {
+      onUpdate: (run) => updates.push(run),
+      now: () => "t1",
+      signal: new AbortController().signal,
+      awaitApproval: async () => "approved",
+    });
+    expect(order).toEqual(["build", "check"]); // the gate is not a worker stage
+    expect(updates.some((run) => run.status === "awaiting_approval")).toBe(true);
+    expect(final.status).toBe("passed");
+  });
+
+  it("completes with issues when the operator rejects", async () => {
+    const { fn } = scriptedRunner({ build: [buildOk()], check: [checkPass()] });
+    const final = await runPipeline(CAREFUL_RECIPE, baseRun({ recipeId: "careful" }), fn, {
+      onUpdate: () => {},
+      now: () => "t1",
+      signal: new AbortController().signal,
+      awaitApproval: async () => "rejected",
+    });
+    expect(final.status).toBe("completed_with_issues");
   });
 });
 

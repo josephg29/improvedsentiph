@@ -7,6 +7,7 @@ const DONE_LABEL: Record<string, string> = {
   completed_with_issues: "Issues",
   failed: "Failed",
   cancelled: "Cancelled",
+  awaiting_approval: "Approve?",
 };
 
 const doneTone = (run: Run): string => {
@@ -19,6 +20,8 @@ const doneTone = (run: Run): string => {
       return "failed";
     case "cancelled":
       return "pending";
+    case "awaiting_approval":
+      return "issues";
     default:
       return "active";
   }
