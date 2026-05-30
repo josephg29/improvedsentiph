@@ -26,6 +26,18 @@ describe("pickRecipe", () => {
     expect(pickRecipe(longTypoTask)).toBe("careful");
   });
 
+  it("picks large for open-ended build tasks", () => {
+    expect(pickRecipe("Build me a game where you are homeless")).toBe("large");
+    expect(pickRecipe("Build a full e-commerce platform")).toBe("large");
+    expect(pickRecipe("Create a complete dashboard from scratch")).toBe("large");
+    expect(pickRecipe("Implement a full stack blog application")).toBe("large");
+  });
+
+  it("careful beats large when both signals are present", () => {
+    expect(pickRecipe("Build a complete authentication system from scratch")).toBe("careful");
+    expect(pickRecipe("Build a full payment processing module")).toBe("careful");
+  });
+
   it("is case-insensitive", () => {
     expect(pickRecipe("ADD AUTHENTICATION")).toBe("careful");
   });

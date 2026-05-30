@@ -10,6 +10,7 @@
 
 import {
   type IssueFinding,
+  type PlanResult,
   type Recipe,
   type RecipeStage,
   type Run,
@@ -37,8 +38,12 @@ export interface PipelineHooks {
 
 export const statusForStage = (stage: RecipeStage): RunStatus => {
   switch (stage.role) {
+    case "plan":
+      return "planning";
     case "build":
       return "building";
+    case "integrate":
+      return "integrating";
     case "fix":
       return "fixing";
     default:
@@ -61,10 +66,51 @@ const formatIssues = (issues: IssueFinding[]): string =>
     })
     .join("\n");
 
-/** Build the worker prompt for a stage. Pure. */
-export const renderStagePrompt = (recipe: Recipe, stage: RecipeStage, run: Run): string => {
-  if (stage.role === "build") {
+/** Build the worker prompt for a stage. Pure. `index` selects the subtask for parallel builders. */
+export const renderStagePrompt = (
+  recipe: Recipe,
+  stage: RecipeStage,
+  run: Run,
+  index = 0,
+): string => {
+  if (stage.role === "plan") {
     return run.task;
+  }
+  if (stage.role === "build") {
+    const planStage = recipe.stages.find((s) => s.role === "plan");
+    if (planStage) {
+      const planOutcome = run.outcomes.find((o) => o.stageId === planStage.id && o.ok);
+      const plan = planOutcome?.result as PlanResult | undefined;
+      const subtask = plan?.subtasks?.[index];
+      if (plan && subtask) {
+        return (
+          `Full task: ${run.task}\n\n` +
+          `Overall plan: ${plan.summary}\n\n` +
+          `Your assigned subtask (index ${index}):\n` +
+          `Description: ${subtask.description}\n` +
+          `File domain (work ONLY within this domain): ${subtask.fileDomain}\n\n` +
+          `Implement ONLY your assigned subtask. Do not modify files outside your file domain.`
+        );
+      }
+    }
+    return run.task;
+  }
+  if (stage.role === "integrate") {
+    const buildStage = recipe.stages.find((s) => s.role === "build");
+    const builderSummaries = buildStage
+      ? run.outcomes
+          .filter((o) => o.stageId === buildStage.id && o.ok)
+          .map((o, i) => {
+            const r = o.result as { filesTouched?: string[]; summary?: string } | undefined;
+            return `Builder ${i}: touched ${r?.filesTouched?.join(", ") ?? "unknown"} — ${r?.summary ?? ""}`;
+          })
+          .join("\n")
+      : "(no builder summaries available)";
+    return (
+      `Original task: ${run.task}\n\n` +
+      `Builder outputs to integrate:\n${builderSummaries}\n\n` +
+      `Resolve any conflicts, wire the pieces together, and ensure the full implementation is coherent.`
+    );
   }
   if (stage.role === "check") {
     return `Inspect the change made for the following task and return your verdict.\n\nTask:\n${run.task}`;

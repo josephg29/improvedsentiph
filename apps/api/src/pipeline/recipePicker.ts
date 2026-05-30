@@ -8,7 +8,7 @@
  * else gets the standard build → check → fix.
  */
 
-import { CAREFUL_RECIPE, DEFAULT_RECIPE_ID, QUICK_RECIPE } from "./recipes";
+import { CAREFUL_RECIPE, DEFAULT_RECIPE_ID, LARGE_RECIPE, QUICK_RECIPE } from "./recipes";
 
 // Risk signals → the careful recipe (3 checkers + human approval). Safety wins,
 // so these are checked first.
@@ -29,6 +29,27 @@ const CAREFUL_SIGNALS = [
   "delete",
   "drop table",
   "drop database",
+];
+
+// Large-scope signals → the large recipe (planner + 3 parallel builders + integrator).
+const LARGE_SCOPE_SIGNALS = [
+  "build me a",
+  "build a full",
+  "build a complete",
+  "create a full",
+  "create a complete",
+  "implement a full",
+  "implement a complete",
+  "from scratch",
+  "end to end",
+  "entire system",
+  "entire app",
+  "entire application",
+  "full game",
+  "full feature",
+  "full stack",
+  "whole app",
+  "whole system",
 ];
 
 // Trivial signals → the quick recipe (one checker, no fix loop).
@@ -58,6 +79,11 @@ export const pickRecipe = (task: string): string => {
   // Quick only for short, trivial tasks — a long task is rarely trivial.
   if (normalized.length <= 80 && containsAny(normalized, QUICK_SIGNALS)) {
     return QUICK_RECIPE.id;
+  }
+
+  // Large-scope phrases indicate open-ended construction tasks.
+  if (containsAny(normalized, LARGE_SCOPE_SIGNALS)) {
+    return LARGE_RECIPE.id;
   }
 
   return DEFAULT_RECIPE_ID;

@@ -7,6 +7,37 @@
 
 import type { Recipe } from "@sentiph/core";
 
+const PLAN_OUTPUT_SCHEMA = {
+  type: "object",
+  required: ["summary", "subtasks"],
+  properties: {
+    summary: { type: "string" },
+    subtasks: {
+      type: "array",
+      items: {
+        type: "object",
+        required: ["index", "description", "fileDomain"],
+        properties: {
+          index: { type: "integer" },
+          description: { type: "string" },
+          fileDomain: { type: "string" },
+        },
+      },
+    },
+  },
+} as const;
+
+const INTEGRATE_OUTPUT_SCHEMA = {
+  type: "object",
+  required: ["summary", "filesTouched", "done"],
+  properties: {
+    summary: { type: "string" },
+    filesTouched: { type: "array", items: { type: "string" } },
+    done: { type: "boolean" },
+    conflictsResolved: { type: "array", items: { type: "string" } },
+  },
+} as const;
+
 const BUILD_OUTPUT_SCHEMA = {
   type: "object",
   required: ["summary", "filesTouched", "done"],
@@ -151,12 +182,88 @@ export const CAREFUL_RECIPE: Recipe = {
   ],
 };
 
+/** Large: planner decomposes, three builders work in parallel, integrator wires them together. */
+export const LARGE_RECIPE: Recipe = {
+  id: "large",
+  title: "Large (plan → build ×3 → integrate → check ×3 → fix)",
+  maxFixCycles: 1,
+  stages: [
+    {
+      id: "plan",
+      role: "plan",
+      model: "opus",
+      effort: "high",
+      toolPolicy: "read-only",
+      systemPrompt:
+        "You are the senior planner in an automated pipeline for large, open-ended tasks. " +
+        "Analyze the task, explore the codebase with your read tools, and decompose the work " +
+        "into exactly 3 discrete subtasks with non-overlapping file domains. " +
+        "You SHOULD use parallel sub-agents to read and explore the codebase before planning — " +
+        "never plan alone when research would improve the decomposition. " +
+        "Output a summary and exactly 3 subtasks, each with an index (0, 1, 2), a description, " +
+        "and a fileDomain (glob pattern for the files this subtask exclusively owns). " +
+        "Non-overlapping domains prevent merge conflicts between the parallel builders. " +
+        "Return only the requested JSON.",
+      outputSchema: PLAN_OUTPUT_SCHEMA,
+    },
+    {
+      id: "build",
+      role: "build",
+      model: "sonnet",
+      effort: "high",
+      fanout: 3,
+      toolPolicy: "full",
+      systemPrompt:
+        "You are a parallel builder in an automated pipeline. You will receive the full task " +
+        "and your specific assigned subtask with a file domain. Implement ONLY your assigned " +
+        "subtask. Do NOT modify files outside your assigned file domain — other builders are " +
+        "working on those in parallel. When finished, report a summary, the files you touched " +
+        "(all within your domain), and whether your subtask is done. Return only the requested JSON.",
+      outputSchema: BUILD_OUTPUT_SCHEMA,
+    },
+    {
+      id: "integrate",
+      role: "integrate",
+      model: "opus",
+      effort: "high",
+      toolPolicy: "full",
+      systemPrompt:
+        "You are the integrator in an automated pipeline. Three builders have implemented " +
+        "different parts of a large task in parallel. Read all their work, resolve any conflicts " +
+        "or gaps, wire the components together into a coherent whole, and make any necessary " +
+        "cross-cutting edits. Report a summary, all files touched, and whether the result is " +
+        "complete. Return only the requested JSON.",
+      outputSchema: INTEGRATE_OUTPUT_SCHEMA,
+    },
+    {
+      id: "check",
+      role: "check",
+      model: "sonnet",
+      effort: "high",
+      fanout: 3,
+      toolPolicy: "read-only",
+      systemPrompt: STANDARD_RECIPE.stages[1]?.systemPrompt ?? "",
+      outputSchema: CHECK_OUTPUT_SCHEMA,
+    },
+    {
+      id: "fix",
+      role: "fix",
+      model: "sonnet",
+      effort: "high",
+      toolPolicy: "full",
+      systemPrompt: STANDARD_RECIPE.stages[2]?.systemPrompt ?? "",
+      outputSchema: FIX_OUTPUT_SCHEMA,
+    },
+  ],
+};
+
 export const DEFAULT_RECIPE_ID = STANDARD_RECIPE.id;
 
 const RECIPES: ReadonlyMap<string, Recipe> = new Map([
   [STANDARD_RECIPE.id, STANDARD_RECIPE],
   [QUICK_RECIPE.id, QUICK_RECIPE],
   [CAREFUL_RECIPE.id, CAREFUL_RECIPE],
+  [LARGE_RECIPE.id, LARGE_RECIPE],
 ]);
 
 export const getRecipe = (recipeId: string): Recipe | undefined => RECIPES.get(recipeId);

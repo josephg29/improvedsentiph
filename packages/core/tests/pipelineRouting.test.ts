@@ -349,6 +349,202 @@ describe("human approval gate", () => {
   });
 });
 
+const LARGE: Recipe = {
+  id: "large",
+  title: "Large",
+  maxFixCycles: 1,
+  stages: [
+    {
+      id: "plan",
+      role: "plan",
+      systemPrompt: "plan",
+      model: "opus",
+      effort: "high",
+      toolPolicy: "read-only",
+      outputSchema: {},
+    },
+    {
+      id: "build",
+      role: "build",
+      systemPrompt: "build",
+      model: "sonnet",
+      effort: "high",
+      fanout: 3,
+      toolPolicy: "full",
+      outputSchema: {},
+    },
+    {
+      id: "integrate",
+      role: "integrate",
+      systemPrompt: "integrate",
+      model: "opus",
+      effort: "high",
+      toolPolicy: "full",
+      outputSchema: {},
+    },
+    {
+      id: "check",
+      role: "check",
+      systemPrompt: "check",
+      model: "sonnet",
+      effort: "high",
+      fanout: 3,
+      toolPolicy: "read-only",
+      outputSchema: {},
+    },
+    {
+      id: "fix",
+      role: "fix",
+      systemPrompt: "fix",
+      model: "sonnet",
+      effort: "high",
+      toolPolicy: "full",
+      outputSchema: {},
+    },
+  ],
+};
+
+const planOk = () => outcome("plan", 0, true, { summary: "plan done", subtasks: [] });
+const planFail = () => outcome("plan", 0, false, undefined, { error: "plan failed" });
+
+const buildOkLarge = (index: number) =>
+  outcome("build", index, true, { summary: `built ${index}`, filesTouched: [], done: true });
+const buildFailLarge = (index: number) =>
+  outcome("build", index, false, undefined, { error: `builder ${index} crashed` });
+
+const integrateOk = () =>
+  outcome("integrate", 0, true, { summary: "integrated", filesTouched: [], done: true });
+const integrateFail = () =>
+  outcome("integrate", 0, false, undefined, { error: "integrator crashed" });
+
+const makeLargeRun = (outcomes: WorkerOutcome[]): Run => ({
+  runId: "run-1",
+  recipeId: "large",
+  task: "build a game",
+  status: "pending",
+  outcomes,
+  createdAt: "2026-05-29T00:00:00.000Z",
+  updatedAt: "2026-05-29T00:00:00.000Z",
+});
+
+describe("large recipe routing", () => {
+  it("runs the plan stage first", () => {
+    expect(nextAction(LARGE, makeLargeRun([]))).toEqual({ kind: "run_stage", stageId: "plan" });
+  });
+
+  it("fails if the planner fails", () => {
+    const action = nextAction(LARGE, makeLargeRun([planFail()]));
+    expect(action.kind).toBe("done");
+    if (action.kind === "done") {
+      expect(action.result.status).toBe("failed");
+    }
+  });
+
+  it("runs the build stage after the plan succeeds", () => {
+    expect(nextAction(LARGE, makeLargeRun([planOk()]))).toEqual({
+      kind: "run_stage",
+      stageId: "build",
+    });
+  });
+
+  it("runs integrate only after all 3 builders complete", () => {
+    const twoBuilders = makeLargeRun([planOk(), buildOkLarge(0), buildOkLarge(1)]);
+    expect(nextAction(LARGE, twoBuilders)).toEqual({ kind: "run_stage", stageId: "build" });
+
+    const allBuilders = makeLargeRun([
+      planOk(),
+      buildOkLarge(0),
+      buildOkLarge(1),
+      buildOkLarge(2),
+    ]);
+    expect(nextAction(LARGE, allBuilders)).toEqual({ kind: "run_stage", stageId: "integrate" });
+  });
+
+  it("fails if any builder fails", () => {
+    const run = makeLargeRun([planOk(), buildOkLarge(0), buildFailLarge(1), buildOkLarge(2)]);
+    const action = nextAction(LARGE, run);
+    expect(action.kind).toBe("done");
+    if (action.kind === "done") {
+      expect(action.result.status).toBe("failed");
+    }
+  });
+
+  it("runs check after integrate succeeds", () => {
+    const run = makeLargeRun([
+      planOk(),
+      buildOkLarge(0),
+      buildOkLarge(1),
+      buildOkLarge(2),
+      integrateOk(),
+    ]);
+    expect(nextAction(LARGE, run)).toEqual({ kind: "run_stage", stageId: "check" });
+  });
+
+  it("fails if the integrator fails", () => {
+    const run = makeLargeRun([
+      planOk(),
+      buildOkLarge(0),
+      buildOkLarge(1),
+      buildOkLarge(2),
+      integrateFail(),
+    ]);
+    const action = nextAction(LARGE, run);
+    expect(action.kind).toBe("done");
+    if (action.kind === "done") {
+      expect(action.result.status).toBe("failed");
+    }
+  });
+
+  it("passes when all checks pass after integrate", () => {
+    const run = makeLargeRun([
+      planOk(),
+      buildOkLarge(0),
+      buildOkLarge(1),
+      buildOkLarge(2),
+      integrateOk(),
+      checkPass(0),
+      checkPass(1),
+      checkPass(2),
+    ]);
+    const action = nextAction(LARGE, run);
+    expect(action.kind).toBe("done");
+    if (action.kind === "done") {
+      expect(action.result.status).toBe("passed");
+    }
+  });
+
+  it("routes to fix when checkers find high-severity issues", () => {
+    const run = makeLargeRun([
+      planOk(),
+      buildOkLarge(0),
+      buildOkLarge(1),
+      buildOkLarge(2),
+      integrateOk(),
+      checkNeedsFix(0, [HIGH]),
+      checkNeedsFix(1, [HIGH]),
+      checkNeedsFix(2, [HIGH]),
+    ]);
+    expect(nextAction(LARGE, run)).toEqual({ kind: "run_stage", stageId: "fix" });
+  });
+
+  it("uses the integrator summary in converge", () => {
+    const run = makeLargeRun([
+      planOk(),
+      buildOkLarge(0),
+      buildOkLarge(1),
+      buildOkLarge(2),
+      integrateOk(),
+      checkPass(0),
+      checkPass(1),
+      checkPass(2),
+    ]);
+    const action = nextAction(LARGE, run);
+    if (action.kind === "done") {
+      expect(action.result.taskSummary).toBe("integrated");
+    }
+  });
+});
+
 const QUICK: Recipe = {
   id: "quick",
   title: "Quick",

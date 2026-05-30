@@ -7,7 +7,7 @@
  * decisions are computed from these types by `application/pipelineRouting.ts`.
  */
 
-export type StageRole = "build" | "check" | "fix" | "approval";
+export type StageRole = "build" | "check" | "fix" | "approval" | "plan" | "integrate";
 
 export type StageId = string; // e.g. "build", "check", "fix"
 
@@ -35,7 +35,9 @@ export interface Recipe {
 
 export type RunStatus =
   | "pending"
+  | "planning"
   | "building"
+  | "integrating"
   | "checking"
   | "fixing"
   | "awaiting_approval"
@@ -80,6 +82,17 @@ export interface Run {
   updatedAt: string;
   result?: RunResult; // set on terminal status
   failureReason?: string; // why a run failed/cancelled (e.g. "api_restart", a worker error)
+}
+
+export interface PlanSubtask {
+  index: number;
+  description: string;
+  fileDomain: string;
+}
+
+export interface PlanResult {
+  summary: string;
+  subtasks: PlanSubtask[];
 }
 
 export interface RunResult {

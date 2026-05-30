@@ -216,38 +216,27 @@ const latestApprovalDecision = (
   return "pending";
 };
 
-const classify = (recipe: Recipe, run: Run): Classification => {
-  const buildStage = requireStageByRole(recipe, "build");
-  const checkStage = requireStageByRole(recipe, "check");
+const classifyCheckFixApproval = (
+  recipe: Recipe,
+  run: Run,
+  checkStage: ReturnType<typeof requireStageByRole>,
+): Classification => {
   const fixStage = stageByRole(recipe, "fix");
   const approvalStage = stageByRole(recipe, "approval");
 
-  const buildOutcomes = outcomesForStage(run.outcomes, buildStage.id);
-  if (buildOutcomes.length === 0) {
-    return { kind: "run_stage", stageId: buildStage.id };
-  }
-  if (anyFailed(buildOutcomes)) {
-    return { kind: "done", status: "failed" };
-  }
-
   const fixOutcomes = fixStage ? outcomesForStage(run.outcomes, fixStage.id) : [];
   if (anyFailed(fixOutcomes)) {
-    // A failed builder/fixer is a hard run failure (spec §14).
     return { kind: "done", status: "failed" };
   }
 
   const checkRounds = countStageRounds(run.outcomes, checkStage.id);
   const fixRounds = fixStage ? countStageRounds(run.outcomes, fixStage.id) : 0;
 
-  // We owe a check whenever the number of completed check rounds matches the
-  // number of fix rounds: the first check after build (0 === 0) and every
-  // re-check after a fix (1 === 1, …).
   if (checkRounds === fixRounds) {
     return { kind: "run_stage", stageId: checkStage.id };
   }
 
   if (checkersPassed(run.outcomes, checkStage.id)) {
-    // Verified work. If the recipe has a human gate, require sign-off first.
     if (approvalStage) {
       const decision = latestApprovalDecision(run.outcomes, approvalStage.id, checkStage.id);
       if (decision === "pending") {
@@ -264,8 +253,60 @@ const classify = (recipe: Recipe, run: Run): Classification => {
     return { kind: "run_stage", stageId: fixStage.id };
   }
 
-  // Out of fix budget (bounded loop) — surface the remaining issues, never loop.
   return { kind: "done", status: "completed_with_issues" };
+};
+
+const classifyLarge = (recipe: Recipe, run: Run): Classification => {
+  const planStage = requireStageByRole(recipe, "plan");
+  const buildStage = requireStageByRole(recipe, "build");
+  const integrateStage = requireStageByRole(recipe, "integrate");
+  const checkStage = requireStageByRole(recipe, "check");
+
+  const planOutcomes = outcomesForStage(run.outcomes, planStage.id);
+  if (planOutcomes.length === 0) {
+    return { kind: "run_stage", stageId: planStage.id };
+  }
+  if (anyFailed(planOutcomes)) {
+    return { kind: "done", status: "failed" };
+  }
+
+  const buildOutcomes = outcomesForStage(run.outcomes, buildStage.id);
+  const expectedFanout = buildStage.fanout ?? 1;
+  if (buildOutcomes.length < expectedFanout) {
+    return { kind: "run_stage", stageId: buildStage.id };
+  }
+  if (anyFailed(buildOutcomes)) {
+    return { kind: "done", status: "failed" };
+  }
+
+  const integrateOutcomes = outcomesForStage(run.outcomes, integrateStage.id);
+  if (integrateOutcomes.length === 0) {
+    return { kind: "run_stage", stageId: integrateStage.id };
+  }
+  if (anyFailed(integrateOutcomes)) {
+    return { kind: "done", status: "failed" };
+  }
+
+  return classifyCheckFixApproval(recipe, run, checkStage);
+};
+
+const classify = (recipe: Recipe, run: Run): Classification => {
+  if (recipe.stages.some((stage) => stage.role === "plan")) {
+    return classifyLarge(recipe, run);
+  }
+
+  const buildStage = requireStageByRole(recipe, "build");
+  const checkStage = requireStageByRole(recipe, "check");
+
+  const buildOutcomes = outcomesForStage(run.outcomes, buildStage.id);
+  if (buildOutcomes.length === 0) {
+    return { kind: "run_stage", stageId: buildStage.id };
+  }
+  if (anyFailed(buildOutcomes)) {
+    return { kind: "done", status: "failed" };
+  }
+
+  return classifyCheckFixApproval(recipe, run, checkStage);
 };
 
 /**
@@ -313,14 +354,20 @@ export const converge = (recipe: Recipe, run: Run): RunResult => {
   const buildStage = stageByRole(recipe, "build");
   const checkStage = stageByRole(recipe, "check");
   const fixStage = stageByRole(recipe, "fix");
+  const integrateStage = stageByRole(recipe, "integrate");
 
   const buildOutcomes = buildStage ? outcomesForStage(run.outcomes, buildStage.id) : [];
   const fixOutcomes = fixStage ? outcomesForStage(run.outcomes, fixStage.id) : [];
+  const integrateOutcomes = integrateStage ? outcomesForStage(run.outcomes, integrateStage.id) : [];
 
   const lastFixOutcome = fixOutcomes.at(-1);
+  const lastIntegrateOutcome = integrateOutcomes.at(-1);
   const lastBuildOutcome = buildOutcomes.at(-1);
   const taskSummary =
-    readSummary(lastFixOutcome?.result) ?? readSummary(lastBuildOutcome?.result) ?? run.task;
+    readSummary(lastFixOutcome?.result) ??
+    readSummary(lastIntegrateOutcome?.result) ??
+    readSummary(lastBuildOutcome?.result) ??
+    run.task;
 
   const filesTouched = dedupeStrings(
     run.outcomes.flatMap((outcome) => readFilesTouched(outcome.result)),

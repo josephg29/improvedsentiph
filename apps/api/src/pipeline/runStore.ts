@@ -28,7 +28,9 @@ const TERMINAL_STATUSES = new Set<RunStatus>([
 
 const VALID_STATUSES = new Set<RunStatus>([
   "pending",
+  "planning",
   "building",
+  "integrating",
   "checking",
   "fixing",
   "awaiting_approval",

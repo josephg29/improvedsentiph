@@ -8,7 +8,7 @@ import { type Run, checkersPassed } from "@sentiph/core";
  * human approval gate.
  */
 
-export type StageRole = "build" | "check" | "fix" | "approval";
+export type StageRole = "build" | "check" | "fix" | "approval" | "plan" | "integrate";
 export type StageState = "pending" | "active" | "done" | "failed" | "issues";
 
 export interface StageProgress {
@@ -23,10 +23,33 @@ const RECIPE_STAGES: Record<string, StageRole[]> = {
   standard: STANDARD_ROLES,
   quick: ["build", "check"],
   careful: ["build", "check", "fix", "approval"],
+  large: ["plan", "build", "integrate", "check", "fix"],
 };
 
 const outcomesFor = (run: Run, stageId: string) =>
   run.outcomes.filter((outcome) => outcome.stageId === stageId);
+
+const planState = (run: Run): StageState => {
+  if (run.status === "planning") {
+    return "active";
+  }
+  const outcomes = outcomesFor(run, "plan");
+  if (outcomes.length === 0) {
+    return "pending";
+  }
+  return outcomes.some((outcome) => !outcome.ok) ? "failed" : "done";
+};
+
+const integrateState = (run: Run): StageState => {
+  if (run.status === "integrating") {
+    return "active";
+  }
+  const outcomes = outcomesFor(run, "integrate");
+  if (outcomes.length === 0) {
+    return "pending";
+  }
+  return outcomes.some((outcome) => !outcome.ok) ? "failed" : "done";
+};
 
 const buildState = (run: Run): StageState => {
   if (run.status === "building") {
@@ -73,8 +96,12 @@ const approvalState = (run: Run): StageState => {
 
 const labelFor = (role: StageRole): string => {
   switch (role) {
+    case "plan":
+      return "Plan";
     case "build":
       return "Build";
+    case "integrate":
+      return "Integrate";
     case "check":
       return "Check";
     case "fix":
@@ -86,8 +113,12 @@ const labelFor = (role: StageRole): string => {
 
 const stateFor = (role: StageRole, run: Run): StageState => {
   switch (role) {
+    case "plan":
+      return planState(run);
     case "build":
       return buildState(run);
+    case "integrate":
+      return integrateState(run);
     case "check":
       return checkState(run);
     case "fix":

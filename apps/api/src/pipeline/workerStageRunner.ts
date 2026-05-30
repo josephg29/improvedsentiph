@@ -47,12 +47,12 @@ export const createWorkerStageRunner = (deps: WorkerStageRunnerDeps): RunStageFn
   const now = deps.now ?? (() => new Date().toISOString());
 
   return async (stage: RecipeStage, run: Run, signal: AbortSignal): Promise<WorkerOutcome[]> => {
-    const prompt = renderStagePrompt(deps.recipe, stage, run);
     const fanout = stage.fanout ?? 1;
 
     return Promise.all(
       Array.from({ length: fanout }, (_unused, index) =>
         limit(async () => {
+          const prompt = renderStagePrompt(deps.recipe, stage, run, index);
           const startedAt = now();
           try {
             const workerRun = await runWorker({

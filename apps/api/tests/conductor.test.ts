@@ -8,7 +8,7 @@ import {
   runPipeline,
   statusForStage,
 } from "../src/pipeline/conductor";
-import { CAREFUL_RECIPE, STANDARD_RECIPE } from "../src/pipeline/recipes";
+import { CAREFUL_RECIPE, LARGE_RECIPE, STANDARD_RECIPE } from "../src/pipeline/recipes";
 
 const HIGH: IssueFinding = { severity: "high", location: "a.ts:1", problem: "null deref" };
 
@@ -89,6 +89,16 @@ const stageByRole = (role: "build" | "check" | "fix") => {
 describe("statusForStage", () => {
   it("maps roles to in-progress statuses", () => {
     expect(STANDARD_RECIPE.stages.map(statusForStage)).toEqual(["building", "checking", "fixing"]);
+  });
+
+  it("maps plan and integrate roles for the large recipe", () => {
+    expect(LARGE_RECIPE.stages.map(statusForStage)).toEqual([
+      "planning",
+      "building",
+      "integrating",
+      "checking",
+      "fixing",
+    ]);
   });
 });
 
@@ -221,6 +231,23 @@ describe("runPipeline trajectories", () => {
   });
 });
 
+const largeStageByRole = (role: "plan" | "build" | "integrate" | "check" | "fix") => {
+  const found = LARGE_RECIPE.stages.find((stage) => stage.role === role);
+  if (!found) {
+    throw new Error(`missing ${role} stage`);
+  }
+  return found;
+};
+
+const planOutcome = (subtasks: Array<{ index: number; description: string; fileDomain: string }>) =>
+  outcome("plan", 0, true, { summary: "Decomposed into 3 subtasks", subtasks });
+
+const SUBTASKS = [
+  { index: 0, description: "Build game loop", fileDomain: "src/game/loop/**" },
+  { index: 1, description: "Build rendering", fileDomain: "src/game/render/**" },
+  { index: 2, description: "Build input", fileDomain: "src/game/input/**" },
+];
+
 describe("renderStagePrompt", () => {
   it("uses the task verbatim for the builder", () => {
     expect(renderStagePrompt(STANDARD_RECIPE, stageByRole("build"), baseRun())).toBe(
@@ -239,6 +266,42 @@ describe("renderStagePrompt", () => {
     const prompt = renderStagePrompt(STANDARD_RECIPE, stageByRole("fix"), run);
     expect(prompt).toContain("a.ts:1");
     expect(prompt).toContain("null deref");
+  });
+
+  it("uses the task verbatim for the planner", () => {
+    const run = baseRun({ recipeId: "large" });
+    expect(renderStagePrompt(LARGE_RECIPE, largeStageByRole("plan"), run)).toBe("add a feature");
+  });
+
+  it("injects the assigned subtask into the large builder prompt by index", () => {
+    const run = baseRun({ recipeId: "large", outcomes: [planOutcome(SUBTASKS)] });
+    const prompt0 = renderStagePrompt(LARGE_RECIPE, largeStageByRole("build"), run, 0);
+    const prompt1 = renderStagePrompt(LARGE_RECIPE, largeStageByRole("build"), run, 1);
+    expect(prompt0).toContain("index 0");
+    expect(prompt0).toContain("Build game loop");
+    expect(prompt0).toContain("src/game/loop/**");
+    expect(prompt1).toContain("index 1");
+    expect(prompt1).toContain("Build rendering");
+    expect(prompt1).not.toContain("Build game loop");
+  });
+
+  it("falls back to the task when the plan result is missing", () => {
+    const run = baseRun({ recipeId: "large" });
+    const prompt = renderStagePrompt(LARGE_RECIPE, largeStageByRole("build"), run, 0);
+    expect(prompt).toBe("add a feature");
+  });
+
+  it("includes builder summaries in the integrator prompt", () => {
+    const buildOutcomes = [
+      outcome("build", 0, true, { summary: "built loop", filesTouched: ["src/game/loop/index.ts"], done: true }),
+      outcome("build", 1, true, { summary: "built render", filesTouched: ["src/game/render/index.ts"], done: true }),
+      outcome("build", 2, true, { summary: "built input", filesTouched: ["src/game/input/index.ts"], done: true }),
+    ];
+    const run = baseRun({ recipeId: "large", outcomes: [planOutcome(SUBTASKS), ...buildOutcomes] });
+    const prompt = renderStagePrompt(LARGE_RECIPE, largeStageByRole("integrate"), run);
+    expect(prompt).toContain("add a feature");
+    expect(prompt).toContain("built loop");
+    expect(prompt).toContain("built render");
   });
 });
 

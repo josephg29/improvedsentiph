@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   DEFAULT_RECIPE_ID,
+  LARGE_RECIPE,
   STANDARD_RECIPE,
   getRecipe,
   listRecipes,
@@ -38,7 +39,12 @@ describe("standard recipe", () => {
 
   it("returns undefined for an unknown recipe and lists the known ones", () => {
     expect(getRecipe("nope")).toBeUndefined();
-    expect(listRecipes().map((recipe) => recipe.id)).toEqual(["standard", "quick", "careful"]);
+    expect(listRecipes().map((recipe) => recipe.id)).toEqual([
+      "standard",
+      "quick",
+      "careful",
+      "large",
+    ]);
   });
 
   it("quick skips the fix loop", () => {
@@ -56,5 +62,21 @@ describe("standard recipe", () => {
       "approval",
     ]);
     expect(careful?.stages.find((stage) => stage.role === "check")?.fanout).toBe(3);
+  });
+
+  it("large has plan → build×3 → integrate → check×3 → fix", () => {
+    expect(LARGE_RECIPE.stages.map((stage) => stage.role)).toEqual([
+      "plan",
+      "build",
+      "integrate",
+      "check",
+      "fix",
+    ]);
+    expect(LARGE_RECIPE.stages.find((s) => s.role === "build")?.fanout).toBe(3);
+    expect(LARGE_RECIPE.stages.find((s) => s.role === "check")?.fanout).toBe(3);
+    expect(LARGE_RECIPE.stages.find((s) => s.role === "plan")?.model).toBe("opus");
+    expect(LARGE_RECIPE.stages.find((s) => s.role === "integrate")?.model).toBe("opus");
+    expect(LARGE_RECIPE.stages.find((s) => s.role === "plan")?.toolPolicy).toBe("read-only");
+    expect(LARGE_RECIPE.stages.find((s) => s.role === "integrate")?.toolPolicy).toBe("full");
   });
 });
