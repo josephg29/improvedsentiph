@@ -130,4 +130,35 @@ describe("createPipelineRuntime", () => {
     expect(runtime.getRun("run-999")).toBeNull();
     expect(runtime.cancelRun("run-999")).toBe(false);
   });
+
+  it("does not cancel a run that has already finished", async () => {
+    const stateDir = tempDir();
+    const runtime = createPipelineRuntime({
+      workspaceCwd: stateDir,
+      projectStateDir: stateDir,
+      runWorker: passingWorker,
+    });
+    const run = runtime.startRun("quick");
+    await waitForStatus(runtime, run.runId, (status) => status === "passed");
+    expect(runtime.cancelRun(run.runId)).toBe(false);
+    await runtime.close();
+  });
+
+  it("persists a cancelled run across close instead of losing it to api_restart", async () => {
+    const stateDir = tempDir();
+    const runtime = createPipelineRuntime({
+      workspaceCwd: stateDir,
+      projectStateDir: stateDir,
+      runWorker: hangingWorker,
+    });
+    const run = runtime.startRun("long task");
+    await waitForStatus(runtime, run.runId, (status) => status === "building");
+    runtime.cancelRun(run.runId);
+    // close() must let the interrupted run commit "cancelled" before the final flush.
+    await runtime.close();
+
+    const reloaded = createPipelineRuntime({ workspaceCwd: stateDir, projectStateDir: stateDir });
+    expect(reloaded.getRun(run.runId)?.status).toBe("cancelled");
+    await reloaded.close();
+  });
 });

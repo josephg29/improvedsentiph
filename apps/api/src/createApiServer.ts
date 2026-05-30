@@ -13,8 +13,11 @@ import { createApiRequestHandler } from "./createApiServer/requestHandler";
 import type { CreateApiServerOptions } from "./createApiServer/types";
 import { createUpgradeHandler } from "./createApiServer/upgradeHandler";
 import { readGithubRepoSummary as readGithubRepoSummaryDefault } from "./githubRepoSummary";
+import { createGitWorktreeProvider } from "./pipeline/gitWorktreeProvider";
 import { createPipelineRuntime } from "./pipeline/pipelineRuntime";
+import { createSharedWorkspaceProvider } from "./pipeline/worktreeProvider";
 import { createTerminalRuntime } from "./terminalRuntime";
+import { createDefaultGitClient } from "./terminalRuntime/systemClients";
 
 export const createApiServer = ({
   workspaceCwd,
@@ -69,21 +72,37 @@ export const createApiServer = ({
         cwd: resolvedWorkspaceCwd,
       }));
 
-  const runtimeOptions: Parameters<typeof createTerminalRuntime>[0] = {
+  // One git client shared by the terminal runtime and the pipeline worktrees.
+  const resolvedGitClient = gitClient ?? createDefaultGitClient();
+
+  const runtime = createTerminalRuntime({
     workspaceCwd: resolvedWorkspaceCwd,
     projectStateDir: resolvedStateDir,
     getApiBaseUrl,
-  };
-  if (gitClient) {
-    runtimeOptions.gitClient = gitClient;
-  }
+    gitClient: resolvedGitClient,
+  });
 
-  const runtime = createTerminalRuntime(runtimeOptions);
+  // Isolate each run in its own git worktree when the workspace is a repo;
+  // otherwise fall back to the shared workspace (pipelines still run).
+  const isGitRepository = (() => {
+    try {
+      return resolvedGitClient.isRepository(resolvedWorkspaceCwd);
+    } catch {
+      return false;
+    }
+  })();
+  const worktreeProvider = isGitRepository
+    ? createGitWorktreeProvider({
+        gitClient: resolvedGitClient,
+        workspaceCwd: resolvedWorkspaceCwd,
+      })
+    : createSharedWorkspaceProvider(resolvedWorkspaceCwd);
 
   const pipelineRuntime = createPipelineRuntime({
     workspaceCwd: resolvedWorkspaceCwd,
     projectStateDir: resolvedStateDir,
     broadcast: (event) => runtime.broadcastEvent(event),
+    worktreeProvider,
   });
 
   const scanUsageHeatmapWithDefault =

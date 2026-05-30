@@ -7,16 +7,23 @@
  * broadcast (reusing the terminal-event WebSocket channel) so the UI can watch.
  */
 
+import { cpus } from "node:os";
+
 import type { Run, RunResult, RunStatus } from "@sentiph/core";
 
 import { RuntimeInputError } from "../terminalRuntime";
 import { toErrorMessage } from "../terminalRuntime/systemClients";
+import { type Limiter, createLimiter } from "./concurrency";
 import { runPipeline } from "./conductor";
-import { DEFAULT_WORKER_TIMEOUT_MS, RUN_ID_PREFIX } from "./constants";
+import {
+  DEFAULT_WORKER_TIMEOUT_MS,
+  PIPELINE_MAX_CONCURRENT_WORKERS,
+  RUN_ID_PREFIX,
+} from "./constants";
 import type { WorkerRun, WorkerSpec } from "./headlessWorker";
 import { runHeadlessWorker } from "./headlessWorker";
 import { DEFAULT_RECIPE_ID, getRecipe } from "./recipes";
-import { createRunStorePersistence, loadRunStore } from "./runStore";
+import { createRunStorePersistence, isTerminalStatus, loadRunStore } from "./runStore";
 import { createWorkerStageRunner } from "./workerStageRunner";
 import { type WorktreeProvider, createSharedWorkspaceProvider } from "./worktreeProvider";
 
@@ -28,11 +35,27 @@ export interface CreatePipelineRuntimeOptions {
   worktreeProvider?: WorktreeProvider;
   /** Injectable worker runner — defaults to the real headless worker. */
   runWorker?: (spec: WorkerSpec) => Promise<WorkerRun>;
-  /** Shared concurrency limiter across all in-flight workers (M4). */
-  limit?: <T>(task: () => Promise<T>) => Promise<T>;
+  /** Shared concurrency limiter across all in-flight workers. Defaults to a cap. */
+  limit?: Limiter;
+  /** Override the default shared worker concurrency cap. */
+  maxConcurrentWorkers?: number;
   now?: () => string;
   workerTimeoutMs?: number;
 }
+
+const resolveMaxWorkers = (override?: number): number => {
+  if (override !== undefined && Number.isFinite(override) && override >= 1) {
+    return Math.floor(override);
+  }
+  const raw = process.env.SENTIPH_MAX_PIPELINE_WORKERS?.trim();
+  if (raw) {
+    const parsed = Number(raw);
+    if (Number.isFinite(parsed) && parsed >= 1) {
+      return Math.floor(parsed);
+    }
+  }
+  return Math.max(1, Math.min(PIPELINE_MAX_CONCURRENT_WORKERS, cpus().length - 2));
+};
 
 export interface RunSummary {
   runId: string;
@@ -71,11 +94,13 @@ export const createPipelineRuntime = (options: CreatePipelineRuntimeOptions) => 
     options.worktreeProvider ?? createSharedWorkspaceProvider(options.workspaceCwd);
   const runWorker = options.runWorker ?? runHeadlessWorker;
   const workerTimeoutMs = options.workerTimeoutMs ?? DEFAULT_WORKER_TIMEOUT_MS;
+  const limit = options.limit ?? createLimiter(resolveMaxWorkers(options.maxConcurrentWorkers));
   const stateDir = options.projectStateDir;
 
   const loaded = loadRunStore(stateDir, now());
   const runs = loaded.runs;
   const controllers = new Map<string, AbortController>();
+  const inflight = new Set<Promise<void>>();
   const persistence = createRunStorePersistence(stateDir);
 
   // Persist runs reconciled to failed (api_restart) back to disk.
@@ -144,7 +169,7 @@ export const createPipelineRuntime = (options: CreatePipelineRuntimeOptions) => 
         timeoutMs: workerTimeoutMs,
         runWorker,
         now,
-        ...(options.limit ? { limit: options.limit } : {}),
+        limit,
       });
 
       try {
@@ -203,7 +228,9 @@ export const createPipelineRuntime = (options: CreatePipelineRuntimeOptions) => 
       persistence.persistIndex([...runs.keys()]);
       broadcastRun(run);
 
-      void executeRun(run, controller.signal);
+      const execution = executeRun(run, controller.signal);
+      inflight.add(execution);
+      void execution.finally(() => inflight.delete(execution));
       return run;
     },
 
@@ -222,6 +249,11 @@ export const createPipelineRuntime = (options: CreatePipelineRuntimeOptions) => 
       if (!controller) {
         return false;
       }
+      const run = runs.get(runId);
+      if (run && isTerminalStatus(run.status)) {
+        // Already finished — there is nothing in flight to cancel.
+        return false;
+      }
       controller.abort();
       return true;
     },
@@ -230,6 +262,9 @@ export const createPipelineRuntime = (options: CreatePipelineRuntimeOptions) => 
       for (const controller of controllers.values()) {
         controller.abort();
       }
+      // Let interrupted runs commit their terminal state before the final flush,
+      // so a shutdown mid-run persists "cancelled" rather than losing it.
+      await Promise.allSettled([...inflight]);
       await persistence.close();
     },
   };
