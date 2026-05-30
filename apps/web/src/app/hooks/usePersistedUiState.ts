@@ -29,7 +29,7 @@ const DEFAULT_IS_CODEX_USAGE_SECTION_EXPANDED = true;
 const DEFAULT_MINIMIZED_TERMINAL_IDS: string[] = [];
 const DEFAULT_TERMINAL_WIDTHS: Record<string, number> = {};
 const DEFAULT_CANVAS_OPEN_TERMINAL_IDS: string[] = [];
-const DEFAULT_CANVAS_OPEN_TENTACLE_IDS: string[] = [];
+const DEFAULT_CANVAS_OPEN_AGENT_IDS: string[] = [];
 
 const areStringArraysEqual = (left: string[] | undefined, right: string[] | undefined) => {
   if (left === right) {
@@ -78,7 +78,7 @@ const buildPersistedUiStateSnapshot = ({
   minimizedTerminalIds,
   terminalWidths,
   canvasOpenTerminalIds,
-  canvasOpenTentacleIds,
+  canvasOpenAgentIds,
   canvasTerminalsPanelWidth,
 }: {
   activePrimaryNav: PrimaryNavIndex;
@@ -96,7 +96,7 @@ const buildPersistedUiStateSnapshot = ({
   minimizedTerminalIds: string[];
   terminalWidths: Record<string, number>;
   canvasOpenTerminalIds: string[];
-  canvasOpenTentacleIds: string[];
+  canvasOpenAgentIds: string[];
   canvasTerminalsPanelWidth: number | null;
 }): FrontendUiStateSnapshot => ({
   activePrimaryNav,
@@ -114,7 +114,7 @@ const buildPersistedUiStateSnapshot = ({
   minimizedTerminalIds,
   terminalWidths,
   canvasOpenTerminalIds,
-  canvasOpenTentacleIds,
+  canvasOpenAgentIds,
   ...(canvasTerminalsPanelWidth != null ? { canvasTerminalsPanelWidth } : {}),
 });
 
@@ -138,7 +138,7 @@ const areUiStateSnapshotsEqual = (
   areStringArraysEqual(left.minimizedTerminalIds, right.minimizedTerminalIds) &&
   areNumberRecordMapsEqual(left.terminalWidths, right.terminalWidths) &&
   areStringArraysEqual(left.canvasOpenTerminalIds, right.canvasOpenTerminalIds) &&
-  areStringArraysEqual(left.canvasOpenTentacleIds, right.canvasOpenTentacleIds) &&
+  areStringArraysEqual(left.canvasOpenAgentIds, right.canvasOpenAgentIds) &&
   left.canvasTerminalsPanelWidth === right.canvasTerminalsPanelWidth;
 
 type UsePersistedUiStateResult = {
@@ -175,8 +175,8 @@ type UsePersistedUiStateResult = {
   setTerminalWidths: Dispatch<SetStateAction<Record<string, number>>>;
   canvasOpenTerminalIds: string[];
   setCanvasOpenTerminalIds: Dispatch<SetStateAction<string[]>>;
-  canvasOpenTentacleIds: string[];
-  setCanvasOpenTentacleIds: Dispatch<SetStateAction<string[]>>;
+  canvasOpenAgentIds: string[];
+  setCanvasOpenAgentIds: Dispatch<SetStateAction<string[]>>;
   canvasTerminalsPanelWidth: number | null;
   setCanvasTerminalsPanelWidth: Dispatch<SetStateAction<number | null>>;
   readUiState: (signal?: AbortSignal) => Promise<FrontendUiStateSnapshot | null>;
@@ -227,8 +227,8 @@ export const usePersistedUiState = ({
   const [canvasOpenTerminalIds, setCanvasOpenTerminalIds] = useState<string[]>(
     DEFAULT_CANVAS_OPEN_TERMINAL_IDS,
   );
-  const [canvasOpenTentacleIds, setCanvasOpenTentacleIds] = useState<string[]>(
-    DEFAULT_CANVAS_OPEN_TENTACLE_IDS,
+  const [canvasOpenAgentIds, setCanvasOpenAgentIds] = useState<string[]>(
+    DEFAULT_CANVAS_OPEN_AGENT_IDS,
   );
   const [canvasTerminalsPanelWidth, setCanvasTerminalsPanelWidth] = useState<number | null>(null);
   const lastPersistedUiStateRef = useRef<FrontendUiStateSnapshot | null>(null);
@@ -263,7 +263,7 @@ export const usePersistedUiState = ({
   const applyHydratedUiState = useCallback(
     (snapshot: FrontendUiStateSnapshot | null, nextColumns: TerminalView) => {
       const activeTerminalIds = new Set(nextColumns.map((entry) => entry.terminalId));
-      const activeTentacleIds = new Set(nextColumns.map((entry) => entry.tentacleId));
+      const activeAgentIds = new Set(nextColumns.map((entry) => entry.agentId));
       const hasPersistedSnapshot = snapshot !== null && Object.keys(snapshot).length > 0;
       setHasHydratedUiStateSnapshot(hasPersistedSnapshot);
 
@@ -284,7 +284,7 @@ export const usePersistedUiState = ({
           minimizedTerminalIds: DEFAULT_MINIMIZED_TERMINAL_IDS,
           terminalWidths: DEFAULT_TERMINAL_WIDTHS,
           canvasOpenTerminalIds: DEFAULT_CANVAS_OPEN_TERMINAL_IDS,
-          canvasOpenTentacleIds: DEFAULT_CANVAS_OPEN_TENTACLE_IDS,
+          canvasOpenAgentIds: DEFAULT_CANVAS_OPEN_AGENT_IDS,
           canvasTerminalsPanelWidth: null,
         });
         return;
@@ -299,9 +299,9 @@ export const usePersistedUiState = ({
       const nextCanvasOpenTerminalIds = snapshot.canvasOpenTerminalIds
         ? retainActiveTerminalIds(snapshot.canvasOpenTerminalIds, activeTerminalIds)
         : DEFAULT_CANVAS_OPEN_TERMINAL_IDS;
-      const nextCanvasOpenTentacleIds = snapshot.canvasOpenTentacleIds
-        ? retainActiveTerminalIds(snapshot.canvasOpenTentacleIds, activeTentacleIds)
-        : DEFAULT_CANVAS_OPEN_TENTACLE_IDS;
+      const nextCanvasOpenAgentIds = snapshot.canvasOpenAgentIds
+        ? retainActiveTerminalIds(snapshot.canvasOpenAgentIds, activeAgentIds)
+        : DEFAULT_CANVAS_OPEN_AGENT_IDS;
 
       lastPersistedUiStateRef.current = buildPersistedUiStateSnapshot({
         activePrimaryNav:
@@ -331,7 +331,7 @@ export const usePersistedUiState = ({
         minimizedTerminalIds: nextMinimizedTerminalIds,
         terminalWidths: nextTerminalWidths,
         canvasOpenTerminalIds: nextCanvasOpenTerminalIds,
-        canvasOpenTentacleIds: nextCanvasOpenTentacleIds,
+        canvasOpenAgentIds: nextCanvasOpenAgentIds,
         canvasTerminalsPanelWidth: snapshot.canvasTerminalsPanelWidth ?? null,
       });
 
@@ -399,8 +399,8 @@ export const usePersistedUiState = ({
         setCanvasOpenTerminalIds(nextCanvasOpenTerminalIds);
       }
 
-      if (snapshot.canvasOpenTentacleIds) {
-        setCanvasOpenTentacleIds(nextCanvasOpenTentacleIds);
+      if (snapshot.canvasOpenAgentIds) {
+        setCanvasOpenAgentIds(nextCanvasOpenAgentIds);
       }
 
       if (snapshot.canvasTerminalsPanelWidth !== undefined) {
@@ -412,11 +412,11 @@ export const usePersistedUiState = ({
 
   useEffect(() => {
     const activeTerminalIds = new Set(columns.map((entry) => entry.terminalId));
-    const activeTentacleIds = new Set(columns.map((entry) => entry.tentacleId));
+    const activeAgentIds = new Set(columns.map((entry) => entry.agentId));
     setMinimizedTerminalIds((current) => retainActiveTerminalIds(current, activeTerminalIds));
     setTerminalWidths((current) => retainActiveTerminalEntries(current, activeTerminalIds));
     setCanvasOpenTerminalIds((current) => retainActiveTerminalIds(current, activeTerminalIds));
-    setCanvasOpenTentacleIds((current) => retainActiveTerminalIds(current, activeTentacleIds));
+    setCanvasOpenAgentIds((current) => retainActiveTerminalIds(current, activeAgentIds));
   }, [columns]);
 
   useEffect(() => {
@@ -440,7 +440,7 @@ export const usePersistedUiState = ({
       minimizedTerminalIds,
       terminalWidths,
       canvasOpenTerminalIds,
-      canvasOpenTentacleIds,
+      canvasOpenAgentIds,
       canvasTerminalsPanelWidth,
     });
 
@@ -474,7 +474,7 @@ export const usePersistedUiState = ({
   }, [
     activePrimaryNav,
     canvasOpenTerminalIds,
-    canvasOpenTentacleIds,
+    canvasOpenAgentIds,
     canvasTerminalsPanelWidth,
     isActiveAgentsSectionExpanded,
     isAgentsSidebarVisible,
@@ -526,8 +526,8 @@ export const usePersistedUiState = ({
     setTerminalWidths,
     canvasOpenTerminalIds,
     setCanvasOpenTerminalIds,
-    canvasOpenTentacleIds,
-    setCanvasOpenTentacleIds,
+    canvasOpenAgentIds,
+    setCanvasOpenAgentIds,
     canvasTerminalsPanelWidth,
     setCanvasTerminalsPanelWidth,
     readUiState,

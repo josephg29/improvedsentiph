@@ -16,23 +16,21 @@
   - Framework-agnostic domain types, application logic, and ports.
   - Must stay free of React, HTTP, PTY, and filesystem orchestration concerns.
 - API app: `apps/api`
-  - Node HTTP/WebSocket server, PTY session runtime, worktree lifecycle, transcript persistence, monitor service.
+  - Node HTTP/WebSocket server, PTY session runtime, worktree lifecycle, transcript persistence, Activity (git and token usage) endpoints.
 - Web app: `apps/web`
-  - Vite + React operator UI, modular CSS, UI orchestration over API/runtime contracts.
-- Runtime state: `.octogent/`
-  - `state/tentacles.json`
-  - `state/transcripts/*.jsonl`
-  - `worktrees/<tentacleId>`
+  - Vite + React operator UI with the live agent canvas, Activity page, and Settings page; modular CSS; UI orchestration over API/runtime contracts.
+- Runtime state: `~/.sentiph/projects/<project-id>/state/`
+  - the agent registry file
+  - `transcripts/*.jsonl`
+  - project-local `.sentiph/worktrees/<agentId>` for worktree-backed agents
 
 ## Documentation Map
 - Start at `README.md` for the product overview and command surface.
 - Docs index: `docs/index.md`
 - Core concepts:
   - `docs/concepts/mental-model.md`
-  - `docs/concepts/tentacles.md`
   - `docs/concepts/runtime-and-api.md`
 - Workflow guides:
-  - `docs/guides/working-with-todos.md`
   - `docs/guides/orchestrating-child-agents.md`
   - `docs/guides/inter-agent-messaging.md`
 - References:
@@ -53,7 +51,7 @@
 - Read only the guides and code relevant to the surface you are changing. Do not sweep the whole repo before starting.
 - Prefer small, isolated edits over broad cleanup unless the task explicitly asks for refactoring.
 - Keep docs in sync with behavior changes when user-facing workflows, commands, persistence layout, or architecture assumptions change.
-- Preserve the product vocabulary already documented in `CLAUDE.md`: agents, sessions, worktrees, logs, pipelines, tentacles, and terminal columns.
+- Preserve the product vocabulary already documented in `CLAUDE.md`: agents, sessions, worktrees, the live canvas of agent nodes, Activity, and Settings.
 
 ## Verification
 - Install: `pnpm install`

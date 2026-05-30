@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 
-import { TENTACLE_WORKTREE_BRANCH_PREFIX, TENTACLE_WORKTREE_RELATIVE_PATH } from "./constants";
+import { AGENT_WORKTREE_BRANCH_PREFIX, AGENT_WORKTREE_RELATIVE_PATH } from "./constants";
 import { toErrorMessage } from "./systemClients";
 import type { GitClient, PersistedTerminal } from "./types";
 import { RuntimeInputError } from "./types";
@@ -12,13 +12,13 @@ type CreateWorktreeManagerOptions = {
   terminals: Map<string, PersistedTerminal>;
 };
 
-type RemoveTentacleWorktreeOptions = {
+type RemoveAgentWorktreeOptions = {
   bestEffort?: boolean;
 };
 
 /** Resolve the effective worktree identifier for a terminal. */
 const getEffectiveWorktreeId = (terminal: PersistedTerminal): string =>
-  terminal.worktreeId ?? terminal.tentacleId;
+  terminal.worktreeId ?? terminal.agentId;
 
 /** Find any terminal whose effective worktree identifier matches. */
 const findTerminalForWorktree = (
@@ -38,19 +38,19 @@ export const createWorktreeManager = ({
   gitClient,
   terminals,
 }: CreateWorktreeManagerOptions) => {
-  const getTentacleWorktreePath = (tentacleId: string) =>
-    join(workspaceCwd, TENTACLE_WORKTREE_RELATIVE_PATH, tentacleId);
-  const getTentacleBranchName = (tentacleId: string) =>
-    `${TENTACLE_WORKTREE_BRANCH_PREFIX}${tentacleId}`;
+  const getAgentWorktreePath = (agentId: string) =>
+    join(workspaceCwd, AGENT_WORKTREE_RELATIVE_PATH, agentId);
+  const getAgentBranchName = (agentId: string) =>
+    `${AGENT_WORKTREE_BRANCH_PREFIX}${agentId}`;
 
-  const getTentacleWorkspaceCwd = (worktreeIdentifier: string) => {
+  const getAgentWorkspaceCwd = (worktreeIdentifier: string) => {
     const terminal = findTerminalForWorktree(terminals, worktreeIdentifier);
     if (!terminal) {
       throw new Error(`No terminal found for worktree: ${worktreeIdentifier}`);
     }
 
     if (terminal.workspaceMode === "worktree") {
-      return getTentacleWorktreePath(worktreeIdentifier);
+      return getAgentWorktreePath(worktreeIdentifier);
     }
 
     return workspaceCwd;
@@ -65,9 +65,9 @@ export const createWorktreeManager = ({
     }
   };
 
-  const createTentacleWorktree = (tentacleId: string, baseRef = "HEAD") => {
+  const createAgentWorktree = (agentId: string, baseRef = "HEAD") => {
     assertWorktreeCreationSupported();
-    const worktreePath = getTentacleWorktreePath(tentacleId);
+    const worktreePath = getAgentWorktreePath(agentId);
     if (existsSync(worktreePath)) {
       throw new RuntimeInputError(`Worktree path already exists: ${worktreePath}`);
     }
@@ -76,24 +76,24 @@ export const createWorktreeManager = ({
       gitClient.addWorktree({
         cwd: workspaceCwd,
         path: worktreePath,
-        branchName: `${TENTACLE_WORKTREE_BRANCH_PREFIX}${tentacleId}`,
+        branchName: `${AGENT_WORKTREE_BRANCH_PREFIX}${agentId}`,
         baseRef,
       });
     } catch (error) {
-      throw new Error(`Unable to create worktree for ${tentacleId}: ${toErrorMessage(error)}`);
+      throw new Error(`Unable to create worktree for ${agentId}: ${toErrorMessage(error)}`);
     }
   };
 
-  const hasTentacleWorktree = (tentacleId: string): boolean =>
-    existsSync(getTentacleWorktreePath(tentacleId));
+  const hasAgentWorktree = (agentId: string): boolean =>
+    existsSync(getAgentWorktreePath(agentId));
 
-  const removeTentacleWorktree = (
-    tentacleId: string,
-    options: RemoveTentacleWorktreeOptions = {},
+  const removeAgentWorktree = (
+    agentId: string,
+    options: RemoveAgentWorktreeOptions = {},
   ) => {
     const { bestEffort = false } = options;
-    const worktreePath = getTentacleWorktreePath(tentacleId);
-    const branchName = getTentacleBranchName(tentacleId);
+    const worktreePath = getAgentWorktreePath(agentId);
+    const branchName = getAgentBranchName(agentId);
 
     if (existsSync(worktreePath)) {
       try {
@@ -106,7 +106,7 @@ export const createWorktreeManager = ({
           return;
         }
         throw new RuntimeInputError(
-          `Unable to remove worktree for ${tentacleId}: ${toErrorMessage(error)}`,
+          `Unable to remove worktree for ${agentId}: ${toErrorMessage(error)}`,
         );
       }
     }
@@ -121,15 +121,15 @@ export const createWorktreeManager = ({
         return;
       }
       throw new RuntimeInputError(
-        `Unable to remove branch for ${tentacleId}: ${toErrorMessage(error)}`,
+        `Unable to remove branch for ${agentId}: ${toErrorMessage(error)}`,
       );
     }
   };
 
   return {
-    getTentacleWorkspaceCwd,
-    createTentacleWorktree,
-    hasTentacleWorktree,
-    removeTentacleWorktree,
+    getAgentWorkspaceCwd,
+    createAgentWorktree,
+    hasAgentWorktree,
+    removeAgentWorktree,
   };
 };

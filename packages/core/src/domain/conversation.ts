@@ -9,14 +9,14 @@ export type ConversationTurn = {
 export type ConversationTranscriptEvent = {
   eventId: string;
   sessionId: string;
-  tentacleId: string;
+  agentId: string;
   timestamp: string;
   type: "session_start" | "input_submit" | "output_chunk" | "state_change" | "session_end";
 };
 
 export type ConversationSessionSummary = {
   sessionId: string;
-  tentacleId: string | null;
+  agentId: string | null;
   startedAt: string | null;
   endedAt: string | null;
   lastEventAt: string | null;

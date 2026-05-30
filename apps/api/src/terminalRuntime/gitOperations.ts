@@ -1,8 +1,8 @@
 import type {
   GitClient,
   PersistedTerminal,
-  TentacleGitStatusSnapshot,
-  TentaclePullRequestSnapshot,
+  AgentGitStatusSnapshot,
+  AgentPullRequestSnapshot,
 } from "./types";
 import { RuntimeInputError } from "./types";
 import type { createWorktreeManager } from "./worktreeManager";
@@ -16,13 +16,13 @@ export const createGitOperations = (deps: {
 }) => {
   const { terminals, worktreeManager, gitClient } = deps;
 
-  const resolveWorktreeTentacleContext = (
-    tentacleId: string,
+  const resolveWorktreeAgentContext = (
+    agentId: string,
   ): { terminal: PersistedTerminal; workspaceCwd: string } | null => {
-    // Find any terminal belonging to this tentacle
+    // Find any terminal belonging to this agent
     let terminal: PersistedTerminal | undefined;
     for (const t of terminals.values()) {
-      if (t.tentacleId === tentacleId) {
+      if (t.agentId === agentId) {
         terminal = t;
         break;
       }
@@ -39,21 +39,21 @@ export const createGitOperations = (deps: {
 
     return {
       terminal,
-      workspaceCwd: worktreeManager.getTentacleWorkspaceCwd(
-        terminal.worktreeId ?? terminal.tentacleId,
+      workspaceCwd: worktreeManager.getAgentWorkspaceCwd(
+        terminal.worktreeId ?? terminal.agentId,
       ),
     };
   };
 
   const readWorktreeGitStatus = (
-    tentacleId: string,
+    agentId: string,
     terminal: PersistedTerminal,
     workspaceCwd: string,
-  ): TentacleGitStatusSnapshot => {
+  ): AgentGitStatusSnapshot => {
     try {
       const status = gitClient.readWorktreeStatus({ cwd: workspaceCwd });
       return {
-        tentacleId,
+        agentId,
         workspaceMode: terminal.workspaceMode,
         branchName: status.branchName,
         upstreamBranchName: status.upstreamBranchName,
@@ -68,7 +68,7 @@ export const createGitOperations = (deps: {
       };
     } catch (error) {
       throw new RuntimeInputError(
-        `Unable to read git status for ${tentacleId}: ${
+        `Unable to read git status for ${agentId}: ${
           error instanceof Error ? error.message : String(error)
         }`,
       );
@@ -79,10 +79,10 @@ export const createGitOperations = (deps: {
     state === "OPEN" ? "open" : state === "MERGED" ? "merged" : "closed";
 
   const emptyPullRequestSnapshot = (
-    tentacleId: string,
+    agentId: string,
     terminal: PersistedTerminal,
-  ): TentaclePullRequestSnapshot => ({
-    tentacleId,
+  ): AgentPullRequestSnapshot => ({
+    agentId,
     workspaceMode: terminal.workspaceMode,
     status: "none",
     number: null,
@@ -96,18 +96,18 @@ export const createGitOperations = (deps: {
   });
 
   const readWorktreePullRequest = (
-    tentacleId: string,
+    agentId: string,
     terminal: PersistedTerminal,
     workspaceCwd: string,
-  ): TentaclePullRequestSnapshot => {
+  ): AgentPullRequestSnapshot => {
     try {
       const pullRequest = gitClient.readCurrentBranchPullRequest({ cwd: workspaceCwd });
       if (!pullRequest) {
-        return emptyPullRequestSnapshot(tentacleId, terminal);
+        return emptyPullRequestSnapshot(agentId, terminal);
       }
 
       return {
-        tentacleId,
+        agentId,
         workspaceMode: terminal.workspaceMode,
         status: toPullRequestStatus(pullRequest.state),
         number: pullRequest.number,
@@ -121,7 +121,7 @@ export const createGitOperations = (deps: {
       };
     } catch (error) {
       throw new RuntimeInputError(
-        `Unable to read pull request for ${tentacleId}: ${
+        `Unable to read pull request for ${agentId}: ${
           error instanceof Error ? error.message : String(error)
         }`,
       );
@@ -129,17 +129,17 @@ export const createGitOperations = (deps: {
   };
 
   return {
-    readTentacleGitStatus(tentacleId: string): TentacleGitStatusSnapshot | null {
-      const context = resolveWorktreeTentacleContext(tentacleId);
+    readAgentGitStatus(agentId: string): AgentGitStatusSnapshot | null {
+      const context = resolveWorktreeAgentContext(agentId);
       if (!context) {
         return null;
       }
 
-      return readWorktreeGitStatus(tentacleId, context.terminal, context.workspaceCwd);
+      return readWorktreeGitStatus(agentId, context.terminal, context.workspaceCwd);
     },
 
-    commitTentacleWorktree(tentacleId: string, message: string): TentacleGitStatusSnapshot | null {
-      const context = resolveWorktreeTentacleContext(tentacleId);
+    commitAgentWorktree(agentId: string, message: string): AgentGitStatusSnapshot | null {
+      const context = resolveWorktreeAgentContext(agentId);
       if (!context) {
         return null;
       }
@@ -156,17 +156,17 @@ export const createGitOperations = (deps: {
         });
       } catch (error) {
         throw new RuntimeInputError(
-          `Unable to commit ${tentacleId}: ${
+          `Unable to commit ${agentId}: ${
             error instanceof Error ? error.message : String(error)
           }`,
         );
       }
 
-      return readWorktreeGitStatus(tentacleId, context.terminal, context.workspaceCwd);
+      return readWorktreeGitStatus(agentId, context.terminal, context.workspaceCwd);
     },
 
-    pushTentacleWorktree(tentacleId: string): TentacleGitStatusSnapshot | null {
-      const context = resolveWorktreeTentacleContext(tentacleId);
+    pushAgentWorktree(agentId: string): AgentGitStatusSnapshot | null {
+      const context = resolveWorktreeAgentContext(agentId);
       if (!context) {
         return null;
       }
@@ -177,21 +177,21 @@ export const createGitOperations = (deps: {
         });
       } catch (error) {
         throw new RuntimeInputError(
-          `Unable to push ${tentacleId}: ${error instanceof Error ? error.message : String(error)}`,
+          `Unable to push ${agentId}: ${error instanceof Error ? error.message : String(error)}`,
         );
       }
 
-      return readWorktreeGitStatus(tentacleId, context.terminal, context.workspaceCwd);
+      return readWorktreeGitStatus(agentId, context.terminal, context.workspaceCwd);
     },
 
-    syncTentacleWorktree(tentacleId: string, baseRef?: string): TentacleGitStatusSnapshot | null {
-      const context = resolveWorktreeTentacleContext(tentacleId);
+    syncAgentWorktree(agentId: string, baseRef?: string): AgentGitStatusSnapshot | null {
+      const context = resolveWorktreeAgentContext(agentId);
       if (!context) {
         return null;
       }
 
       const statusBeforeSync = readWorktreeGitStatus(
-        tentacleId,
+        agentId,
         context.terminal,
         context.workspaceCwd,
       );
@@ -217,27 +217,27 @@ export const createGitOperations = (deps: {
         });
       } catch (error) {
         throw new RuntimeInputError(
-          `Unable to sync ${tentacleId}: ${error instanceof Error ? error.message : String(error)}`,
+          `Unable to sync ${agentId}: ${error instanceof Error ? error.message : String(error)}`,
         );
       }
 
-      return readWorktreeGitStatus(tentacleId, context.terminal, context.workspaceCwd);
+      return readWorktreeGitStatus(agentId, context.terminal, context.workspaceCwd);
     },
 
-    readTentaclePullRequest(tentacleId: string): TentaclePullRequestSnapshot | null {
-      const context = resolveWorktreeTentacleContext(tentacleId);
+    readAgentPullRequest(agentId: string): AgentPullRequestSnapshot | null {
+      const context = resolveWorktreeAgentContext(agentId);
       if (!context) {
         return null;
       }
 
-      return readWorktreePullRequest(tentacleId, context.terminal, context.workspaceCwd);
+      return readWorktreePullRequest(agentId, context.terminal, context.workspaceCwd);
     },
 
-    createTentaclePullRequest(
-      tentacleId: string,
+    createAgentPullRequest(
+      agentId: string,
       input: { title: string; body?: string; baseRef?: string },
-    ): TentaclePullRequestSnapshot | null {
-      const context = resolveWorktreeTentacleContext(tentacleId);
+    ): AgentPullRequestSnapshot | null {
+      const context = resolveWorktreeAgentContext(agentId);
       if (!context) {
         return null;
       }
@@ -248,7 +248,7 @@ export const createGitOperations = (deps: {
       }
 
       const existingPullRequest = readWorktreePullRequest(
-        tentacleId,
+        agentId,
         context.terminal,
         context.workspaceCwd,
       );
@@ -256,7 +256,7 @@ export const createGitOperations = (deps: {
         throw new RuntimeInputError("An open pull request already exists for this branch.");
       }
 
-      const status = readWorktreeGitStatus(tentacleId, context.terminal, context.workspaceCwd);
+      const status = readWorktreeGitStatus(agentId, context.terminal, context.workspaceCwd);
       if (status.hasConflicts) {
         throw new RuntimeInputError("Resolve git conflicts before creating a pull request.");
       }
@@ -276,11 +276,11 @@ export const createGitOperations = (deps: {
           headRef: status.branchName,
         });
         if (!pullRequest) {
-          return readWorktreePullRequest(tentacleId, context.terminal, context.workspaceCwd);
+          return readWorktreePullRequest(agentId, context.terminal, context.workspaceCwd);
         }
 
         return {
-          tentacleId,
+          agentId,
           workspaceMode: context.terminal.workspaceMode,
           status: toPullRequestStatus(pullRequest.state),
           number: pullRequest.number,
@@ -294,21 +294,21 @@ export const createGitOperations = (deps: {
         };
       } catch (error) {
         throw new RuntimeInputError(
-          `Unable to create pull request for ${tentacleId}: ${
+          `Unable to create pull request for ${agentId}: ${
             error instanceof Error ? error.message : String(error)
           }`,
         );
       }
     },
 
-    mergeTentaclePullRequest(tentacleId: string): TentaclePullRequestSnapshot | null {
-      const context = resolveWorktreeTentacleContext(tentacleId);
+    mergeAgentPullRequest(agentId: string): AgentPullRequestSnapshot | null {
+      const context = resolveWorktreeAgentContext(agentId);
       if (!context) {
         return null;
       }
 
       const currentPullRequest = readWorktreePullRequest(
-        tentacleId,
+        agentId,
         context.terminal,
         context.workspaceCwd,
       );
@@ -329,13 +329,13 @@ export const createGitOperations = (deps: {
         });
       } catch (error) {
         throw new RuntimeInputError(
-          `Unable to merge pull request for ${tentacleId}: ${
+          `Unable to merge pull request for ${agentId}: ${
             error instanceof Error ? error.message : String(error)
           }`,
         );
       }
 
-      return readWorktreePullRequest(tentacleId, context.terminal, context.workspaceCwd);
+      return readWorktreePullRequest(agentId, context.terminal, context.workspaceCwd);
     },
   };
 };

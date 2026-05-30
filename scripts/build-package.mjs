@@ -17,7 +17,6 @@ const copyDirectory = (sourcePath, destinationPath) => {
 
 mkdirSync(distDir, { recursive: true });
 
-copyDirectory(join(packageRoot, "prompts"), join(distDir, "prompts"));
 copyDirectory(join(packageRoot, "apps", "web", "dist"), join(distDir, "web"));
 
-chmodSync(join(packageRoot, "bin", "octogent"), 0o755);
+chmodSync(join(packageRoot, "bin", "sentiph"), 0o755);

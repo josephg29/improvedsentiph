@@ -99,7 +99,7 @@ export const createHookProcessor = (deps: {
             hooks: [
               {
                 type: "command",
-                command: `curl -s -X POST "${apiBaseUrl}/api/hooks/session-start?octogent_session=$OCTOGENT_SESSION_ID" -H 'Content-Type: application/json' -d @- || true`,
+                command: `curl -s -X POST "${apiBaseUrl}/api/hooks/session-start?sentiph_session=$SENTIPH_SESSION_ID" -H 'Content-Type: application/json' -d @- || true`,
                 timeout: 5,
               },
             ],
@@ -111,7 +111,7 @@ export const createHookProcessor = (deps: {
             hooks: [
               {
                 type: "command",
-                command: `curl -s -X POST "${apiBaseUrl}/api/hooks/user-prompt-submit?octogent_session=$OCTOGENT_SESSION_ID" -H 'Content-Type: application/json' -d @- || true`,
+                command: `curl -s -X POST "${apiBaseUrl}/api/hooks/user-prompt-submit?sentiph_session=$SENTIPH_SESSION_ID" -H 'Content-Type: application/json' -d @- || true`,
                 timeout: 5,
               },
             ],
@@ -124,22 +124,8 @@ export const createHookProcessor = (deps: {
               {
                 type: "http",
                 url: `${apiBaseUrl}/api/hooks/pre-tool-use`,
-                headers: { "X-Octogent-Session": "$OCTOGENT_SESSION_ID" },
-                allowedEnvVars: ["OCTOGENT_SESSION_ID"],
-                timeout: 5,
-              },
-            ],
-          },
-        ],
-        PostToolUse: [
-          {
-            matcher: "Edit|Write",
-            hooks: [
-              {
-                type: "http",
-                url: `${apiBaseUrl}/api/code-intel/events`,
-                headers: { "X-Octogent-Session": "$OCTOGENT_SESSION_ID" },
-                allowedEnvVars: ["OCTOGENT_SESSION_ID"],
+                headers: { "X-Sentiph-Session": "$SENTIPH_SESSION_ID" },
+                allowedEnvVars: ["SENTIPH_SESSION_ID"],
                 timeout: 5,
               },
             ],
@@ -152,8 +138,8 @@ export const createHookProcessor = (deps: {
               {
                 type: "http",
                 url: `${apiBaseUrl}/api/hooks/notification`,
-                headers: { "X-Octogent-Session": "$OCTOGENT_SESSION_ID" },
-                allowedEnvVars: ["OCTOGENT_SESSION_ID"],
+                headers: { "X-Sentiph-Session": "$SENTIPH_SESSION_ID" },
+                allowedEnvVars: ["SENTIPH_SESSION_ID"],
                 timeout: 5,
               },
             ],
@@ -165,7 +151,7 @@ export const createHookProcessor = (deps: {
             hooks: [
               {
                 type: "command",
-                command: `curl -s -X POST "${apiBaseUrl}/api/hooks/stop?octogent_session=$OCTOGENT_SESSION_ID" -H 'Content-Type: application/json' -d @- || true`,
+                command: `curl -s -X POST "${apiBaseUrl}/api/hooks/stop?sentiph_session=$SENTIPH_SESSION_ID" -H 'Content-Type: application/json' -d @- || true`,
                 timeout: 15,
               },
             ],
@@ -203,10 +189,10 @@ export const createHookProcessor = (deps: {
   const handleHook = (
     hookName: string,
     payload: unknown,
-    octogentSessionId?: string,
+    sentiphSessionId?: string,
   ): { ok: boolean } => {
     logVerbose(
-      `[Hook] Received hook: ${hookName} octogentSession=${octogentSessionId ?? "(none)"}`,
+      `[Hook] Received hook: ${hookName} sentiphSession=${sentiphSessionId ?? "(none)"}`,
     );
 
     if (!payload || typeof payload !== "object") {
@@ -216,12 +202,12 @@ export const createHookProcessor = (deps: {
     const hookPayloadRecord = payload as Record<string, unknown>;
 
     if (hookName === "notification") {
-      if (!octogentSessionId) {
+      if (!sentiphSessionId) {
         return { ok: true };
       }
-      const session = sessions.get(octogentSessionId);
+      const session = sessions.get(sentiphSessionId);
       if (!session) {
-        logVerbose(`[Hook] notification: no session for ${octogentSessionId}, skipping.`);
+        logVerbose(`[Hook] notification: no session for ${sentiphSessionId}, skipping.`);
         return { ok: true };
       }
 
@@ -230,12 +216,12 @@ export const createHookProcessor = (deps: {
           ? hookPayloadRecord.notification_type
           : null;
 
-      logVerbose(`[Hook] notification: type=${notificationType} session=${octogentSessionId}`);
+      logVerbose(`[Hook] notification: type=${notificationType} session=${sentiphSessionId}`);
 
       if (notificationType === "permission_prompt") {
         session.agentState = "waiting_for_permission";
         session.stateTracker.forceState("waiting_for_permission");
-        onStateChange?.(octogentSessionId, "waiting_for_permission", session.lastToolName);
+        onStateChange?.(sentiphSessionId, "waiting_for_permission", session.lastToolName);
         broadcastMessage(session, {
           type: "state",
           state: "waiting_for_permission",
@@ -244,21 +230,21 @@ export const createHookProcessor = (deps: {
       } else if (notificationType === "idle_prompt") {
         session.agentState = "idle";
         session.stateTracker.forceState("idle");
-        onStateChange?.(octogentSessionId, "idle");
+        onStateChange?.(sentiphSessionId, "idle");
         broadcastMessage(session, { type: "state", state: "idle" });
 
         // Deliver any queued channel messages now that the agent is idle.
-        deliverChannelMessages(octogentSessionId);
+        deliverChannelMessages(sentiphSessionId);
       }
 
       return { ok: true };
     }
 
     if (hookName === "pre-tool-use") {
-      if (!octogentSessionId) {
+      if (!sentiphSessionId) {
         return { ok: true };
       }
-      const session = sessions.get(octogentSessionId);
+      const session = sessions.get(sentiphSessionId);
       if (!session) {
         return { ok: true };
       }
@@ -266,7 +252,7 @@ export const createHookProcessor = (deps: {
       const toolName =
         typeof hookPayloadRecord.tool_name === "string" ? hookPayloadRecord.tool_name : null;
 
-      logVerbose(`[Hook] pre-tool-use: tool=${toolName} session=${octogentSessionId}`);
+      logVerbose(`[Hook] pre-tool-use: tool=${toolName} session=${sentiphSessionId}`);
 
       if (toolName) {
         session.lastToolName = toolName;
@@ -275,7 +261,7 @@ export const createHookProcessor = (deps: {
       if (toolName === "AskUserQuestion") {
         session.agentState = "waiting_for_user";
         session.stateTracker.forceState("waiting_for_user");
-        onStateChange?.(octogentSessionId, "waiting_for_user");
+        onStateChange?.(sentiphSessionId, "waiting_for_user");
         broadcastMessage(session, { type: "state", state: "waiting_for_user" });
       }
 
@@ -283,11 +269,11 @@ export const createHookProcessor = (deps: {
     }
 
     if (hookName === "user-prompt-submit") {
-      if (!octogentSessionId) {
+      if (!sentiphSessionId) {
         return { ok: true };
       }
 
-      const terminal = terminals.get(octogentSessionId);
+      const terminal = terminals.get(sentiphSessionId);
       if (!terminal) {
         return { ok: true };
       }
@@ -314,14 +300,14 @@ export const createHookProcessor = (deps: {
         const renameContext = terminal.autoRenamePromptContext?.trim() || prompt;
         if (renameContext.length > 0) {
           const derived = deriveTerminalNameFromPrompt(renameContext);
-          terminal.tentacleName = derived;
+          terminal.agentName = derived;
           terminal.nameOrigin = "prompt";
           terminal.autoRenamePromptContext = undefined;
           logVerbose(`[Hook] Auto-named terminal ${terminal.terminalId} → "${derived}"`);
 
           const session = sessions.get(terminal.terminalId);
           if (session) {
-            broadcastMessage(session, { type: "rename", tentacleName: derived });
+            broadcastMessage(session, { type: "rename", agentName: derived });
           }
         }
       }
@@ -348,16 +334,16 @@ export const createHookProcessor = (deps: {
 
     let matchedSessionId: string | null = null;
 
-    if (octogentSessionId && sessions.has(octogentSessionId)) {
-      matchedSessionId = octogentSessionId;
-      logVerbose(`[Hook] Matched session by octogent_session param: ${matchedSessionId}`);
-    } else if (octogentSessionId) {
+    if (sentiphSessionId && sessions.has(sentiphSessionId)) {
+      matchedSessionId = sentiphSessionId;
+      logVerbose(`[Hook] Matched session by sentiph_session param: ${matchedSessionId}`);
+    } else if (sentiphSessionId) {
       logVerbose(
-        `[Hook] octogent_session=${octogentSessionId} not found in active sessions, skipping.`,
+        `[Hook] sentiph_session=${sentiphSessionId} not found in active sessions, skipping.`,
       );
       return { ok: true };
     } else {
-      logVerbose("[Hook] No octogent_session param — ignoring hook from external Claude session.");
+      logVerbose("[Hook] No sentiph_session param — ignoring hook from external Claude session.");
       return { ok: true };
     }
 

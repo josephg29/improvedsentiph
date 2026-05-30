@@ -4,7 +4,7 @@ import { createServer } from "node:net";
 import { basename, join, resolve } from "node:path";
 
 import {
-  ensureOctogentGitignoreEntry,
+  ensureSentiphGitignoreEntry,
   ensureProjectScaffold,
   loadProjectConfig,
   loadProjectsRegistry,
@@ -23,7 +23,7 @@ const args = process.argv.slice(2);
 const command = args[0];
 
 const resolvePackageRoot = () => {
-  const envRoot = process.env.OCTOGENT_PACKAGE_ROOT?.trim();
+  const envRoot = process.env.SENTIPH_PACKAGE_ROOT?.trim();
   if (envRoot) {
     return resolve(envRoot);
   }
@@ -60,10 +60,10 @@ const DEFAULT_START_PORT = 8787;
 const MAX_PORT_ATTEMPTS = 200;
 
 const initializeProject = (workspaceCwd: string, preferredName?: string) => {
-  const projectName = preferredName?.trim() || basename(workspaceCwd) || "octogent-project";
+  const projectName = preferredName?.trim() || basename(workspaceCwd) || "sentiph-project";
   const hadConfig = loadProjectConfig(workspaceCwd) !== null;
   const projectConfig = ensureProjectScaffold(workspaceCwd, projectName);
-  ensureOctogentGitignoreEntry(workspaceCwd);
+  ensureSentiphGitignoreEntry(workspaceCwd);
   registerProject(workspaceCwd, projectConfig.displayName);
   const projectStateDir = resolveProjectStateDir(workspaceCwd, projectConfig.displayName);
   migrateStateToGlobal(workspaceCwd, projectStateDir);
@@ -87,7 +87,7 @@ const resolveStartupProjectContext = (workspaceCwd: string) => {
     };
   }
 
-  const projectDisplayName = basename(workspaceCwd) || "octogent-project";
+  const projectDisplayName = basename(workspaceCwd) || "sentiph-project";
   const projectStateDir = resolveEphemeralProjectStateDir(workspaceCwd);
   return {
     isInitialized: false,
@@ -101,12 +101,12 @@ const initProject = (name?: string) => {
   const { created, projectConfig, projectStateDir } = initializeProject(projectPath, name);
 
   console.log(
-    `${created ? "Initialized" : "Updated"} Octogent project "${projectConfig.displayName}" at ${projectPath}`,
+    `${created ? "Initialized" : "Updated"} Sentiph project "${projectConfig.displayName}" at ${projectPath}`,
   );
-  console.log("  .octogent/ directory ready (project metadata, tentacles, worktrees)");
+  console.log("  .sentiph/ directory ready (project metadata, agents, worktrees)");
   console.log(`  Global state: ${projectStateDir}`);
   console.log("  .gitignore updated");
-  console.log("\nRun `octogent` to start the dashboard.");
+  console.log("\nRun `sentiph` to start the dashboard.");
 };
 
 const canListenOnPort = (port: number): Promise<boolean> =>
@@ -136,7 +136,7 @@ const findOpenPort = async (startPort: number): Promise<number> => {
 };
 
 const readPreferredStartPort = () => {
-  const rawPort = process.env.OCTOGENT_API_PORT ?? process.env.PORT;
+  const rawPort = process.env.SENTIPH_API_PORT ?? process.env.PORT;
   if (!rawPort) {
     return DEFAULT_START_PORT;
   }
@@ -151,7 +151,7 @@ const readPreferredStartPort = () => {
 
 const resolveRuntimeApiBase = () => {
   const explicitBase =
-    process.env.OCTOGENT_API_ORIGIN?.trim() || process.env.OCTOGENT_API_BASE?.trim();
+    process.env.SENTIPH_API_ORIGIN?.trim() || process.env.SENTIPH_API_BASE?.trim();
   if (explicitBase) {
     return explicitBase;
   }
@@ -170,13 +170,13 @@ const resolveRuntimeApiBase = () => {
 
 const apiError = () => {
   console.error(
-    `Error: Could not reach API at ${resolveRuntimeApiBase()}. Start Octogent in this project first.`,
+    `Error: Could not reach API at ${resolveRuntimeApiBase()}. Start Sentiph in this project first.`,
   );
   process.exit(1);
 };
 
 const maybeOpenBrowser = (url: string) => {
-  if (process.env.OCTOGENT_NO_OPEN === "1" || process.env.CI === "1") {
+  if (process.env.SENTIPH_NO_OPEN === "1" || process.env.CI === "1") {
     return;
   }
 
@@ -218,7 +218,6 @@ const startServer = async () => {
   const workspaceCwd = process.cwd();
   const { isInitialized, projectDisplayName, projectStateDir } =
     resolveStartupProjectContext(workspaceCwd);
-  const promptsDir = resolveRuntimeAssetPath(["dist", "prompts"], ["prompts"]);
   const webDistDir = resolveRuntimeAssetPath(["dist", "web"], ["apps", "web", "dist"]);
   const port = await findOpenPort(readPreferredStartPort());
   const { createApiServer } = await import("./createApiServer");
@@ -226,9 +225,8 @@ const startServer = async () => {
   const apiServer = createApiServer({
     workspaceCwd,
     projectStateDir,
-    promptsDir,
     webDistDir: existsSync(webDistDir) ? webDistDir : undefined,
-    allowRemoteAccess: process.env.OCTOGENT_ALLOW_REMOTE_ACCESS === "1",
+    allowRemoteAccess: process.env.SENTIPH_ALLOW_REMOTE_ACCESS === "1",
   });
 
   const shutdown = async () => {
@@ -257,7 +255,7 @@ const startServer = async () => {
   }
 
   console.log();
-  console.log("  Octogent is running");
+  console.log("  Sentiph is running");
   console.log(`  Project: ${workspaceCwd}`);
   console.log(`  Name:    ${projectDisplayName}`);
   console.log(`  API:     ${apiBaseUrl}`);
@@ -284,31 +282,6 @@ const COLORS = [
   "#00fff7",
   "#ff9500",
 ];
-const ANIMATIONS = ["sway", "walk", "jog", "bounce", "float", "swim-up"];
-const EXPRESSIONS = ["normal", "happy", "angry", "surprised"];
-const ACCESSORIES = ["none", "none", "long", "mohawk", "side-sweep", "curly"];
-const HAIR_COLORS = [
-  "#4a2c0a",
-  "#1a1a1a",
-  "#c8a04a",
-  "#e04020",
-  "#f5f5f5",
-  "#6b3fa0",
-  "#2a6e3f",
-  "#1e90ff",
-];
-
-const pick = <T>(items: T[]): T => items[Math.floor(Math.random() * items.length)] as T;
-
-const randomAppearance = () => ({
-  color: pick(COLORS),
-  octopus: {
-    animation: pick(ANIMATIONS),
-    expression: pick(EXPRESSIONS),
-    accessory: pick(ACCESSORIES),
-    hairColor: pick(HAIR_COLORS),
-  },
-});
 
 const parseFlag = (flag: string): string | undefined => {
   const index = args.indexOf(flag);
@@ -339,65 +312,12 @@ const parseJsonFlag = (flag: string): Record<string, string> | undefined => {
   }
 };
 
-const tentacleCreate = async () => {
-  const name = args[2];
-  if (!name || name.startsWith("-")) {
-    console.error("Error: tentacle name is required.");
-    process.exit(1);
-  }
-
-  const description = parseFlag("--description") ?? parseFlag("-d") ?? "";
-  const { color, octopus } = randomAppearance();
-  const apiBase = resolveRuntimeApiBase();
-
-  try {
-    const response = await fetch(`${apiBase}/api/deck/tentacles`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, description, color, octopus }),
-    });
-    const data = (await response.json()) as Record<string, unknown>;
-    if (!response.ok) {
-      console.error(`Error: ${data.error ?? "Failed"}`);
-      process.exit(1);
-    }
-    console.log(`Created tentacle "${data.tentacleId}"`);
-  } catch {
-    apiError();
-  }
-};
-
-const tentacleList = async () => {
-  const apiBase = resolveRuntimeApiBase();
-
-  try {
-    const response = await fetch(`${apiBase}/api/deck/tentacles`);
-    if (!response.ok) {
-      console.error("Error: failed to fetch tentacles.");
-      process.exit(1);
-    }
-
-    const tentacles = (await response.json()) as Array<Record<string, unknown>>;
-    if (tentacles.length === 0) {
-      console.log("No tentacles found.");
-      return;
-    }
-
-    for (const tentacle of tentacles) {
-      const description = tentacle.description ? ` — ${tentacle.description}` : "";
-      console.log(`  ${tentacle.tentacleId}${description}`);
-    }
-  } catch {
-    apiError();
-  }
-};
-
 const terminalCreate = async () => {
   const name = parseFlag("--name") ?? parseFlag("-n");
   const initialPrompt = parseFlag("--initial-prompt") ?? parseFlag("-p");
   const workspaceMode = parseFlag("--workspace-mode") ?? parseFlag("-w") ?? "shared";
   const terminalId = parseFlag("--terminal-id");
-  const tentacleId = parseFlag("--tentacle-id");
+  const agentId = parseFlag("--agent-id");
   const worktreeId = parseFlag("--worktree-id");
   const parentTerminalId = parseFlag("--parent-terminal-id");
   const nameOrigin = parseFlag("--name-origin");
@@ -411,7 +331,7 @@ const terminalCreate = async () => {
   if (initialPrompt) body.initialPrompt = initialPrompt;
   if (workspaceMode) body.workspaceMode = workspaceMode;
   if (terminalId) body.terminalId = terminalId;
-  if (tentacleId) body.tentacleId = tentacleId;
+  if (agentId) body.agentId = agentId;
   if (worktreeId) body.worktreeId = worktreeId;
   if (parentTerminalId) body.parentTerminalId = parentTerminalId;
   if (nameOrigin) body.nameOrigin = nameOrigin;
@@ -456,7 +376,7 @@ const terminalList = async () => {
 
     for (const terminal of terminals) {
       const terminalId = String(terminal.terminalId ?? "");
-      const name = String(terminal.tentacleName ?? terminal.label ?? terminalId);
+      const name = String(terminal.agentName ?? terminal.label ?? terminalId);
       const lifecycle = String(terminal.lifecycleState ?? terminal.state ?? "unknown");
       const pid =
         typeof terminal.processId === "number" && Number.isFinite(terminal.processId)
@@ -530,7 +450,7 @@ const channelSend = async () => {
     process.exit(1);
   }
 
-  const fromTerminalId = parseFlag("--from") ?? process.env.OCTOGENT_SESSION_ID ?? "";
+  const fromTerminalId = parseFlag("--from") ?? process.env.SENTIPH_SESSION_ID ?? "";
   const fromIndex = args.indexOf("--from");
   const message =
     fromIndex !== -1
@@ -622,7 +542,7 @@ const main = async () => {
     const projects = loadProjectsRegistry().projects;
     if (projects.length === 0) {
       console.log(
-        "No projects registered yet. Run `octogent` or `octogent init` in a project directory.",
+        "No projects registered yet. Run `sentiph` or `sentiph init` in a project directory.",
       );
       return;
     }
@@ -631,15 +551,6 @@ const main = async () => {
       console.log(`  ${project.name}  ${project.id}  ${project.path}`);
     }
     return;
-  }
-
-  if (command === "tentacle" || command === "tentacles") {
-    if (args[1] === "create") {
-      return tentacleCreate();
-    }
-    if (args[1] === "list" || args[1] === "ls") {
-      return tentacleList();
-    }
   }
 
   if (command === "terminal" || command === "terminals") {
@@ -670,28 +581,23 @@ const main = async () => {
   }
 
   console.log(`Usage:
-  octogent                             Start the dashboard in the current project
-  octogent init [project-name]         Initialize the current directory explicitly
-  octogent projects                    List registered projects
+  sentiph                             Start the dashboard in the current project
+  sentiph init [project-name]         Initialize the current directory explicitly
+  sentiph projects                    List registered projects
 
-  octogent tentacle create <name>      Create a tentacle (Octogent must be running)
-  octogent tentacle list               List tentacles
-  octogent terminal create [options]   Create a terminal
+  sentiph terminal create [options]   Create a terminal
     --name, -n                         Terminal display name
     --workspace-mode, -w               shared | worktree
     --initial-prompt, -p               Raw initial prompt text
     --terminal-id                      Explicit terminal ID
-    --tentacle-id                      Existing tentacle ID to attach to
     --worktree-id                      Explicit worktree ID
     --parent-terminal-id               Parent terminal ID for child terminals
-    --prompt-template                  Prompt template name
-    --prompt-variables                 JSON object of prompt template variables
-  octogent terminal list               List terminal lifecycle state
-  octogent terminal stop <id>          Stop a terminal session
-  octogent terminal kill <id>          Kill a terminal session or recorded process
-  octogent terminal prune              Remove stale, stopped, and exited terminal records
-  octogent channel send <id> <msg>     Send a channel message
-  octogent channel list <id>           List channel messages`);
+  sentiph terminal list               List terminal lifecycle state
+  sentiph terminal stop <id>          Stop a terminal session
+  sentiph terminal kill <id>          Kill a terminal session or recorded process
+  sentiph terminal prune              Remove stale, stopped, and exited terminal records
+  sentiph channel send <id> <msg>     Send a channel message
+  sentiph channel list <id>           List channel messages`);
   process.exit(1);
 };
 

@@ -1,4 +1,4 @@
-.chrome {
+﻿.chrome {
   border-bottom: 1px solid var(--border-subtle);
   background: var(--bg-surface-2);
   padding: 0.3rem 0.45rem;
@@ -31,14 +31,6 @@
   justify-self: start;
   gap: 0.35rem;
   min-width: 0;
-}
-
-.chrome-octopus {
-  display: block;
-  width: 1.2rem;
-  height: auto;
-  margin: 0;
-  image-rendering: pixelated;
 }
 
 .chrome-right {
@@ -84,9 +76,9 @@
 }
 
 .action-button--primary {
-  --action-button-border: var(--border-subtle);
-  --action-button-bg: color-mix(in srgb, var(--accent-primary) 88%, #ffd7a0 12%);
-  --action-button-color: #121212;
+  --action-button-border: #111;
+  --action-button-bg: #111;
+  --action-button-color: #fafafa;
   --action-button-font-size: 0.68rem;
   --action-button-padding-y: 0.2rem;
   --action-button-padding-x: 0.42rem;
@@ -104,15 +96,15 @@
 }
 
 .action-button--info {
-  --action-button-border: color-mix(in srgb, #9bc8ff 45%, var(--control-border-strong));
-  --action-button-bg: color-mix(in srgb, #9bc8ff 12%, var(--control-bg-strong));
-  --action-button-color: #9bc8ff;
+  --action-button-border: #1e59a3;
+  --action-button-bg: #eaf0f9;
+  --action-button-color: #1e59a3;
 }
 
 .action-button--danger {
-  --action-button-border: color-mix(in srgb, #ff9a9a 45%, var(--control-border-strong));
-  --action-button-bg: color-mix(in srgb, #ff9a9a 12%, var(--control-bg-strong));
-  --action-button-color: #ff9a9a;
+  --action-button-border: #880f1e;
+  --action-button-bg: #f9eaec;
+  --action-button-color: #880f1e;
 }
 
 .action-button:disabled {
@@ -127,7 +119,7 @@
 
 .chrome-sidebar-toggle {
   border: 1px solid var(--border-subtle);
-  background: color-mix(in srgb, var(--bg-surface-1) 85%, #1e1e1e);
+  background: color-mix(in srgb, var(--bg-surface-1) 85%, #dddddd);
   color: var(--text-primary);
   font-family: inherit;
   display: inline-flex;
@@ -156,9 +148,9 @@
 }
 
 .chrome-create-terminal {
-  --action-button-border: var(--border-subtle);
-  --action-button-bg: color-mix(in srgb, var(--accent-primary) 88%, #ffd7a0 12%);
-  --action-button-color: #121212;
+  --action-button-border: #111;
+  --action-button-bg: #111;
+  --action-button-color: #fafafa;
   --action-button-font-size: 0.68rem;
   --action-button-letter-spacing: 0.07em;
   --action-button-line-height: 1.25;
@@ -167,9 +159,9 @@
 }
 
 .chrome-create-terminal--worktree {
-  --action-button-border: color-mix(in srgb, #9bc8ff 45%, var(--border-subtle));
-  --action-button-bg: color-mix(in srgb, #9bc8ff 14%, var(--bg-surface-1) 86%);
-  --action-button-color: #9bc8ff;
+  --action-button-border: #1e59a3;
+  --action-button-bg: #eaf0f9;
+  --action-button-color: #1e59a3;
 }
 
 /* Split button for terminal creation with provider dropdown */
@@ -198,15 +190,15 @@
 }
 
 .split-button-toggle--primary {
-  background: color-mix(in srgb, var(--accent-primary) 78%, #ffd7a0 12%);
-  color: #121212;
+  background: #111;
+  color: #fafafa;
 }
 
 .split-button-toggle--info {
-  background: color-mix(in srgb, #9bc8ff 14%, var(--bg-surface-1) 86%);
-  border-color: color-mix(in srgb, #9bc8ff 45%, var(--border-subtle));
-  border-left-color: color-mix(in srgb, #9bc8ff 25%, transparent);
-  color: #9bc8ff;
+  background: #eaf0f9;
+  border-color: #1e59a3;
+  border-left-color: rgba(30, 89, 163, 0.25);
+  color: #1e59a3;
 }
 
 .split-button-toggle:disabled {

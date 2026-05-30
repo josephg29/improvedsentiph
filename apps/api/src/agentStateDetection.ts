@@ -1,4 +1,4 @@
-import type { AgentRuntimeState } from "@octogent/core";
+import type { AgentRuntimeState } from "@sentiph/core";
 
 export type { AgentRuntimeState };
 

@@ -1,5 +1,5 @@
 {
-  "name": "octogent",
+  "name": "sentiph",
   "version": "0.1.0",
   "description": "Web-first command surface for running multiple coding agents in parallel",
   "license": "MIT",
@@ -9,13 +9,13 @@
     "node": ">=22.0.0"
   },
   "bin": {
-    "octogent": "./bin/octogent"
+    "sentiph": "./bin/sentiph"
   },
   "files": ["bin", "dist", "README.md"],
   "scripts": {
     "start": "pnpm dev",
     "dev": "node scripts/dev.mjs",
-    "build": "pnpm --filter @octogent/web build && pnpm --filter @octogent/web exec vite build --config vite.api.bundle.config.mts && node scripts/build-package.mjs",
+    "build": "pnpm --filter @sentiph/web build && pnpm --filter @sentiph/web exec vite build --config vite.api.bundle.config.mts && node scripts/build-package.mjs",
     "smoke:public-install": "node scripts/smoke-public-install.mjs",
     "test": "pnpm -r test",
     "lint": "biome check .",

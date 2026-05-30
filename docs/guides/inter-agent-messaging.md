@@ -1,10 +1,10 @@
 # Inter-Agent Messaging
 
-Octogent has a simple local channel system for messages between terminals.
+`sentiph` has a simple local channel system for messages between agents.
 
 ## What channels are
 
-Channels are in-memory queues keyed by target terminal ID. Sending a message does not write to the target tentacle files and does not create a persistent notification record.
+Channels are in-memory queues keyed by target agent ID. Sending a message does not create a persistent notification record.
 
 Use them for short coordination:
 
@@ -13,45 +13,45 @@ Use them for short coordination:
 - hand off a finding
 - point another agent to a file or risk
 
-It is not a replacement for proper context files.
+It is for short-lived coordination, not durable state.
 
 ## Delivery model
 
-When a message is sent, Octogent:
+When a message is sent, `sentiph`:
 
-1. verifies the target terminal record exists
-2. appends the message to that terminal's in-memory queue
+1. verifies the target agent record exists
+2. appends the message to that agent's in-memory queue
 3. marks it as undelivered
 4. injects pending messages into the target PTY when the target session is idle
 
-Delivered messages are written into the terminal input as lines like:
+Delivered messages are written into the agent input as lines like:
 
 ```text
 [Channel message from <from-terminal-id>]: <content>
 ```
 
-If the target terminal is not running, the message waits in memory until that session exists and becomes idle. If the API restarts first, the message is lost.
+If the target agent is not running, the message waits in memory until that session exists and becomes idle. If the API restarts first, the message is lost.
 
 ## CLI usage
 
 Send a message:
 
 ```bash
-octogent channel send <terminal-id> "Need review on the parser change"
+sentiph channel send <terminal-id> "Need review on the parser change"
 ```
 
 When one terminal is messaging another, pass the sender explicitly:
 
 ```bash
-octogent channel send <target-terminal-id> "DONE: parser change is ready" --from <sender-terminal-id>
+sentiph channel send <target-terminal-id> "DONE: parser change is ready" --from <sender-terminal-id>
 ```
 
-If `--from` is omitted, the CLI uses `OCTOGENT_SESSION_ID` when it is available.
+If `--from` is omitted, the CLI uses `SENTIPH_SESSION_ID` when it is available.
 
 List messages:
 
 ```bash
-octogent channel list <terminal-id>
+sentiph channel list <agent-id>
 ```
 
 ## API usage
@@ -69,4 +69,4 @@ octogent channel list <terminal-id>
 
 ## Practical rule
 
-If a message needs to survive, write it into the tentacle files. Use the channel for short-lived coordination only.
+If a message needs to survive, write it into a file in the workspace. Use the channel for short-lived coordination only.

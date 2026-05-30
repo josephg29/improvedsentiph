@@ -17,63 +17,45 @@ For a local global CLI install from a clone:
 pnpm install
 pnpm build
 npm install -g .
-octogent
+sentiph
 ```
 
-Octogent is not published to npm yet, so `npm install -g octogent` is not currently a valid quick start path.
+`sentiph` is not published to npm yet, so `npm install -g sentiph` is not currently a valid quick start path.
 
-On a fresh workspace, Octogent opens the Deck setup flow first. The setup card verifies the
-workspace files, `.gitignore`, and local prerequisites before you create tentacles.
+On a fresh workspace, `sentiph` opens a first-run setup card. The card verifies the workspace files, `.gitignore`, and local prerequisites before you launch any agents.
 
-## 2. Create or inspect a tentacle
+## 2. Launch an agent
 
-If the app is already running, you can create a tentacle from the CLI:
+Each agent appears as a color-coded circle node on the live canvas. Create one from the UI, or from the CLI while the app is running:
 
 ```bash
-octogent tentacle create api-backend --description "API runtime and request handling"
+sentiph terminal create --name "API worker"
 ```
 
-Or use the Deck view in the UI.
+Use `--workspace-mode worktree` if you want the agent to run in an isolated git worktree.
 
-Each tentacle becomes a folder under `.octogent/tentacles/<tentacle-id>/`.
+## 3. Watch it on the canvas
 
-## 3. Let the agent build the local context
+The new agent shows up as a node. Click it to attach to its live session, read its output, and steer it. Node color and state reflect what the agent is doing.
 
-The tentacle files are where the job keeps its local context:
+## 4. Spawn child agents
 
-- `CONTEXT.md` for the local model of that area
-- `todo.md` for concrete tasks
-- extra markdown files for notes, architecture, handoff, or examples
+One Claude Code agent can coordinate others. A parent agent can spawn child agents, give each a scoped task, and supervise the result. Each child is its own node with its own session, lifecycle state, and optional worktree.
 
-You do not need to treat these as manual setup that the developer always writes by hand. One of the points of Octogent is that **Claude Code** can help create, update, and maintain these files from inside the app as the work becomes clearer.
-
-## 4. Create a terminal
+## 5. Send a message
 
 ```bash
-octogent terminal create --name "API worker" --tentacle-id api-backend
-```
-
-Use `--workspace-mode worktree` if you want an isolated git worktree.
-
-## 5. Delegate from todo items
-
-The runtime can parse incomplete items in `todo.md` and use them as inputs when spawning child agents from the Deck swarm flow. That means one item can become one worker, or a larger list can become a swarm.
-
-## 6. Send a message
-
-```bash
-octogent channel send terminal-2 "Need review on the request parser changes"
+sentiph channel send terminal-2 "Need review on the request parser changes"
 ```
 
 ## What to verify
 
-- the tentacle folder exists
-- the terminal appears in the UI
-- `CONTEXT.md` and `todo.md` exist for that tentacle
-- todo progress is visible
-- messages show up in the target terminal channel
+- the agent node appears on the canvas
+- attaching shows the live session output
+- child agents appear as their own nodes
+- messages show up in the target agent's session
 
 ## Next reading
 
 - [Mental Model](../concepts/mental-model.md)
-- [Tentacles](../concepts/tentacles.md)
+- [Orchestrating Child Agents](../guides/orchestrating-child-agents.md)

@@ -1,6 +1,6 @@
 # Installation
 
-Octogent is a local Node.js project with a local API and web UI.
+`sentiph` is a local Node.js project with a local API and web UI.
 
 ## Requirements
 
@@ -29,20 +29,20 @@ npm install -g .
 
 ## npm registry install
 
-Octogent is not published to the npm registry yet, so `npm install -g octogent` will fail with `404`.
+`sentiph` is not published to the npm registry yet, so `npm install -g sentiph` will fail with `404`.
 
 ## First run behavior
 
-Running `octogent` inside a project directory will:
+Running `sentiph` inside a project directory will:
 
-- create `.octogent/` if it does not exist
-- add `.octogent` to `.gitignore` or create `.gitignore` when it is missing
-- write a stable project ID to `.octogent/project.json`
-- register the project under `~/.octogent/projects.json`
-- move runtime state to `~/.octogent/projects/<project-id>/state/`
+- create `.sentiph/` if it does not exist
+- add `.sentiph` to `.gitignore` or create `.gitignore` when it is missing
+- write a stable project ID to `.sentiph/project.json`
+- register the project under `~/.sentiph/projects.json`
+- move runtime state to `~/.sentiph/projects/<project-id>/state/`
 - choose an open local API port starting at `8787`
-- open the browser unless `OCTOGENT_NO_OPEN=1`
-- show a Deck setup card until the first tentacle is created
+- open the browser unless `SENTIPH_NO_OPEN=1`
+- show a first-run setup card until the workspace checks pass
 
 ## Startup rules
 

@@ -7,7 +7,7 @@ import type {
   ConversationSessionDetail,
   ConversationSessionSummary,
   ConversationTurn,
-} from "@octogent/core";
+} from "@sentiph/core";
 
 import type { AgentRuntimeState } from "../agentStateDetection";
 
@@ -22,7 +22,7 @@ const parseRuntimeState = (value: unknown): AgentRuntimeState | null =>
 export type ConversationTranscriptEventBase = {
   eventId: string;
   sessionId: string;
-  tentacleId: string;
+  agentId: string;
   timestamp: string;
 };
 
@@ -62,11 +62,11 @@ export type ConversationTranscriptEvent =
   | SessionEndTranscriptEvent;
 
 export type ConversationTranscriptEventPayload =
-  | Omit<SessionStartTranscriptEvent, "eventId" | "sessionId" | "tentacleId">
-  | Omit<InputSubmitTranscriptEvent, "eventId" | "sessionId" | "tentacleId">
-  | Omit<OutputChunkTranscriptEvent, "eventId" | "sessionId" | "tentacleId">
-  | Omit<StateChangeTranscriptEvent, "eventId" | "sessionId" | "tentacleId">
-  | Omit<SessionEndTranscriptEvent, "eventId" | "sessionId" | "tentacleId">;
+  | Omit<SessionStartTranscriptEvent, "eventId" | "sessionId" | "agentId">
+  | Omit<InputSubmitTranscriptEvent, "eventId" | "sessionId" | "agentId">
+  | Omit<OutputChunkTranscriptEvent, "eventId" | "sessionId" | "agentId">
+  | Omit<StateChangeTranscriptEvent, "eventId" | "sessionId" | "agentId">
+  | Omit<SessionEndTranscriptEvent, "eventId" | "sessionId" | "agentId">;
 
 export type { ConversationTurn };
 
@@ -81,10 +81,10 @@ const parseTranscriptEvent = (value: unknown): ConversationTranscriptEvent | nul
   const eventType = asString(value.type);
   const eventId = asString(value.eventId);
   const sessionId = asString(value.sessionId);
-  const tentacleId = asString(value.tentacleId);
+  const agentId = asString(value.agentId);
   const timestamp = asString(value.timestamp);
 
-  if (!eventType || !eventId || !sessionId || !tentacleId || !timestamp) {
+  if (!eventType || !eventId || !sessionId || !agentId || !timestamp) {
     return null;
   }
 
@@ -93,7 +93,7 @@ const parseTranscriptEvent = (value: unknown): ConversationTranscriptEvent | nul
       type: "session_start",
       eventId,
       sessionId,
-      tentacleId,
+      agentId,
       timestamp,
     };
   }
@@ -109,7 +109,7 @@ const parseTranscriptEvent = (value: unknown): ConversationTranscriptEvent | nul
       type: "input_submit",
       eventId,
       sessionId,
-      tentacleId,
+      agentId,
       timestamp,
       submitId,
       text,
@@ -127,7 +127,7 @@ const parseTranscriptEvent = (value: unknown): ConversationTranscriptEvent | nul
       type: "output_chunk",
       eventId,
       sessionId,
-      tentacleId,
+      agentId,
       timestamp,
       chunkId,
       text,
@@ -144,7 +144,7 @@ const parseTranscriptEvent = (value: unknown): ConversationTranscriptEvent | nul
       type: "state_change",
       eventId,
       sessionId,
-      tentacleId,
+      agentId,
       timestamp,
       state,
     };
@@ -171,7 +171,7 @@ const parseTranscriptEvent = (value: unknown): ConversationTranscriptEvent | nul
       type: "session_end",
       eventId,
       sessionId,
-      tentacleId,
+      agentId,
       timestamp,
       reason,
       ...(exitCode !== undefined ? { exitCode } : {}),
@@ -196,7 +196,7 @@ const buildConversationSummary = (
 
   return {
     sessionId,
-    tentacleId: firstEvent?.tentacleId ?? null,
+    agentId: firstEvent?.agentId ?? null,
     startedAt: firstEvent?.timestamp ?? null,
     endedAt: lastSessionEnd?.timestamp ?? null,
     lastEventAt: lastEvent?.timestamp ?? null,
@@ -325,7 +325,7 @@ export const listConversationSessions = (
 
       return {
         sessionId: detail.sessionId,
-        tentacleId: detail.tentacleId,
+        agentId: detail.agentId,
         startedAt: detail.startedAt,
         endedAt: detail.endedAt,
         lastEventAt: detail.lastEventAt,

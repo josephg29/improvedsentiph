@@ -1,14 +1,13 @@
 import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 
-import type { WorkspaceSetupSnapshot, WorkspaceSetupStep } from "@octogent/core";
+import type { WorkspaceSetupSnapshot, WorkspaceSetupStep } from "@sentiph/core";
 
-import { readDeckTentacles } from "./deck/readDeckTentacles";
 import {
   deriveProjectIdFromWorkspace,
-  ensureOctogentGitignoreEntry,
+  ensureSentiphGitignoreEntry,
   ensureProjectScaffold,
-  hasOctogentGitignoreEntry,
+  hasSentiphGitignoreEntry,
   loadProjectConfig,
   migrateStateToGlobal,
   registerProject,
@@ -31,7 +30,7 @@ export const initializeWorkspaceFiles = (workspaceCwd: string, projectStateDir: 
 };
 
 export const ensureWorkspaceGitignore = (workspaceCwd: string) =>
-  ensureOctogentGitignoreEntry(workspaceCwd);
+  ensureSentiphGitignoreEntry(workspaceCwd);
 
 export const readWorkspaceSetupSnapshot = (
   workspaceCwd: string,
@@ -39,18 +38,17 @@ export const readWorkspaceSetupSnapshot = (
 ): WorkspaceSetupSnapshot => {
   const prerequisites = collectStartupPrerequisiteReport();
   const projectConfig = loadProjectConfig(workspaceCwd);
-  const octogentDir = join(workspaceCwd, ".octogent");
+  const sentiphDir = join(workspaceCwd, ".sentiph");
   const hasProjectScaffold =
     projectConfig !== null &&
-    existsSync(join(octogentDir, "tentacles")) &&
-    existsSync(join(octogentDir, "worktrees")) &&
+    existsSync(join(sentiphDir, "agents")) &&
+    existsSync(join(sentiphDir, "worktrees")) &&
     existsSync(join(projectStateDir, "state"));
-  const hasGitignore = hasOctogentGitignoreEntry(workspaceCwd);
-  const tentacles = readDeckTentacles(workspaceCwd, projectStateDir);
-  const tentacleCount = tentacles.length;
-  const hasAnyTentacles = tentacleCount > 0;
+  const hasGitignore = hasSentiphGitignoreEntry(workspaceCwd);
+  const agentCount = 0;
+  const hasAnyAgents = false;
   const setupState = readSetupState(projectStateDir);
-  const isFirstRun = !hasAnyTentacles && !setupState.tentaclesInitializedAt;
+  const isFirstRun = !hasAnyAgents && !setupState.agentsInitializedAt;
   const verifiedSteps = setupState.verifiedSteps ?? {};
   const isClaudeVerified = Boolean(verifiedSteps["check-claude"]);
   const isGitVerified = Boolean(verifiedSteps["check-git"]);
@@ -63,32 +61,32 @@ export const readWorkspaceSetupSnapshot = (
     {
       id: "initialize-workspace",
       title: "Initialize workspace",
-      description: "Create Octogent project files and runtime directories.",
+      description: "Create Sentiph project files and runtime directories.",
       complete: hasProjectScaffold,
       required: true,
       actionLabel: "Initialize workspace",
       statusText: hasProjectScaffold
         ? "Workspace files are ready."
-        : "Create .octogent project files before continuing.",
+        : "Create .sentiph project files before continuing.",
       guidance: hasProjectScaffold
         ? null
-        : "Workspace initialization failed. Run the Octogent initializer in this repository.",
-      command: hasProjectScaffold ? null : "octogent init",
+        : "Workspace initialization failed. Run the Sentiph initializer in this repository.",
+      command: hasProjectScaffold ? null : "sentiph init",
     },
     {
       id: "ensure-gitignore",
-      title: "Ignore .octogent",
-      description: "Add .octogent to .gitignore, or create .gitignore when it is missing.",
+      title: "Ignore .sentiph",
+      description: "Add .sentiph to .gitignore, or create .gitignore when it is missing.",
       complete: hasGitignore,
       required: true,
       actionLabel: "Update .gitignore",
       statusText: hasGitignore
-        ? ".gitignore covers .octogent."
-        : "Add .octogent to .gitignore before creating tentacles.",
+        ? ".gitignore covers .sentiph."
+        : "Add .sentiph to .gitignore before creating agents.",
       guidance: hasGitignore
         ? null
-        : "Git ignore entry is missing. Create or update .gitignore with the Octogent workspace path.",
-      command: hasGitignore ? null : "printf '.octogent\\n' >> .gitignore",
+        : "Git ignore entry is missing. Create or update .gitignore with the Sentiph workspace path.",
+      command: hasGitignore ? null : "printf '.sentiph\\n' >> .gitignore",
     },
     {
       id: "check-claude",
@@ -112,14 +110,14 @@ export const readWorkspaceSetupSnapshot = (
     {
       id: "check-git",
       title: "Check Git",
-      description: "Verify Git is available for worktree-backed tentacles.",
+      description: "Verify Git is available for worktree-backed agents.",
       complete: hasGit && isGitVerified,
       required: false,
       actionLabel: "Check Git",
       statusText: hasGit
         ? isGitVerified
           ? "Git is available."
-          : "Confirm Git before launching worktree-backed tentacles."
+          : "Confirm Git before launching worktree-backed agents."
         : "Git is unavailable.",
       guidance: hasGit
         ? isGitVerified
@@ -147,28 +145,13 @@ export const readWorkspaceSetupSnapshot = (
         : "Install curl to restore Claude hook callbacks.",
       command: hasCurl ? null : "curl --version",
     },
-    {
-      id: "create-tentacles",
-      title: "Create tentacles",
-      description: "Create at least one tentacle before launching a coding agent.",
-      complete: hasAnyTentacles,
-      required: true,
-      actionLabel: null,
-      statusText: hasAnyTentacles
-        ? `${tentacleCount} tentacle${tentacleCount === 1 ? "" : "s"} ready.`
-        : "Create your first tentacle to continue.",
-      guidance: hasAnyTentacles
-        ? null
-        : "Use the planner or manual creation to add at least one tentacle.",
-      command: null,
-    },
   ];
 
   return {
     isFirstRun,
-    shouldShowSetupCard: isFirstRun || (!hasAnyTentacles && (!hasProjectScaffold || !hasGitignore)),
-    hasAnyTentacles,
-    tentacleCount,
+    shouldShowSetupCard: isFirstRun || (!hasAnyAgents && (!hasProjectScaffold || !hasGitignore)),
+    hasAnyAgents,
+    agentCount,
     steps,
   };
 };

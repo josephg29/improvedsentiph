@@ -1,56 +1,53 @@
-@import url("https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&display=swap");
+@font-face {
+  font-family: "Monocraft";
+  src: url("/fonts/Monocraft.otf") format("opentype");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
 
 :root {
-  --bg-canvas: #000000;
-  --bg-surface-1: #040404;
-  --bg-surface-2: #191919;
-  --border-subtle: #5c5c5c;
-  --text-primary: #f0f0f0;
-  --text-secondary: #c8c8c8;
-  --accent-primary: #faa32c;
+  --bg-canvas: #fafafa;
+  --bg-surface-1: #f2f2f2;
+  --bg-surface-2: #e8e8e8;
+  --border-subtle: #ddd;
+  --text-primary: #111;
+  --text-secondary: #888;
+  --accent-primary: #111;
   --term-red: #880f1e;
-  --term-green: #33ff66;
+  --term-green: #25a244;
   --term-blue: #1e59a3;
-  --term-warning: #ffb020;
-  --control-border-strong: #121212;
-  --control-bg-strong: #000000;
-  --sidebar-canvas: color-mix(in srgb, var(--bg-surface-1) 84%, #131a23 16%);
-  --sidebar-panel: color-mix(in srgb, var(--bg-surface-1) 78%, #1b2430 22%);
-  --sidebar-card: color-mix(in srgb, var(--bg-surface-1) 82%, #16202a 18%);
-  --sidebar-header: color-mix(in srgb, var(--bg-surface-2) 72%, #212c3a 28%);
-  --sidebar-row: color-mix(in srgb, var(--bg-surface-1) 88%, #121a22 12%);
-  --sidebar-row-hover: color-mix(in srgb, var(--sidebar-row) 76%, #263445 24%);
-  --sidebar-row-active: color-mix(in srgb, var(--sidebar-row) 62%, #2c4055 38%);
-  --sidebar-border: color-mix(in srgb, var(--border-subtle) 72%, #313d4d 28%);
-  --sidebar-border-strong: color-mix(in srgb, var(--border-subtle) 48%, #3a4f66 52%);
-  --sidebar-text-muted: color-mix(in srgb, var(--text-secondary) 84%, #9eb2c8 16%);
-  --terminal-bg: #101722;
-  --terminal-header-bg-top: #4b607d;
-  --terminal-header-bg-bottom: #3d516b;
-  --terminal-header-text: #eef3fb;
-  --terminal-scrollbar-track: color-mix(in srgb, var(--terminal-bg) 88%, #0f1622 12%);
-  --terminal-scrollbar-thumb: color-mix(in srgb, var(--accent-primary) 34%, var(--terminal-bg) 66%);
-  --terminal-scrollbar-thumb-hover: color-mix(
-    in srgb,
-    var(--accent-primary) 44%,
-    var(--terminal-bg) 56%
-  );
-  --terminal-scrollbar-thumb-active: color-mix(
-    in srgb,
-    var(--accent-primary) 54%,
-    var(--terminal-bg) 46%
-  );
-  --font-main: "PP Neue Machina Plain", "PP Neue Machina", "JetBrains Mono", "IBM Plex Mono",
-    monospace;
+  --term-warning: #b87000;
+  --control-border-strong: #111;
+  --control-bg-strong: #fafafa;
+  --sidebar-canvas: #f4f4f4;
+  --sidebar-panel: #efefef;
+  --sidebar-card: #f0f0f0;
+  --sidebar-header: #e8e8e8;
+  --sidebar-row: #f2f2f2;
+  --sidebar-row-hover: #e6e6e6;
+  --sidebar-row-active: #ddd;
+  --sidebar-border: #ddd;
+  --sidebar-border-strong: #bbb;
+  --sidebar-text-muted: #888;
+  --terminal-bg: #111;
+  --terminal-header-bg-top: #222;
+  --terminal-header-bg-bottom: #111;
+  --terminal-header-text: #fafafa;
+  --terminal-scrollbar-track: #1c1c1c;
+  --terminal-scrollbar-thumb: #555;
+  --terminal-scrollbar-thumb-hover: #777;
+  --terminal-scrollbar-thumb-active: #999;
+  --font-main: "Monocraft", "Courier New", monospace;
   --control-font-family: var(--font-main);
   --control-letter-spacing: 0.06em;
   --control-line-height: 1.2;
-  --ui-base-font-size: 18px;
+  --ui-base-font-size: 15px;
   --scrollbar-size: 10px;
-  --scrollbar-track: color-mix(in srgb, var(--bg-surface-1) 88%, #121212);
-  --scrollbar-thumb: color-mix(in srgb, var(--accent-primary) 38%, var(--border-subtle) 62%);
-  --scrollbar-thumb-hover: color-mix(in srgb, var(--accent-primary) 54%, var(--border-subtle) 46%);
-  --scrollbar-thumb-active: color-mix(in srgb, var(--accent-primary) 68%, var(--border-subtle) 32%);
+  --scrollbar-track: #e8e8e8;
+  --scrollbar-thumb: #bbb;
+  --scrollbar-thumb-hover: #999;
+  --scrollbar-thumb-active: #777;
   --terminal-column-min-width: 370px;
 }
 
@@ -72,9 +69,13 @@ html {
 
 body {
   font-family: var(--font-main);
-  background: radial-gradient(circle at top right, #111111, var(--bg-canvas) 50%);
+  background: linear-gradient(rgba(0, 0, 0, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.02) 1px, transparent 1px), var(--bg-canvas);
+  background-size: 28px 28px, 28px 28px, auto;
   color: var(--text-primary);
   overflow: hidden;
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: unset;
 }
 
 .page {
@@ -97,4 +98,43 @@ body {
 
 .workspace-shell--full {
   grid-template-columns: 1fr;
+}
+
+/* PrimaryViewRouter wrapper — fills the second grid column and provides a
+   positioning context so the hidden canvas slot can overlay it without
+   escaping to a distant ancestor. */
+.primary-view-router {
+  position: relative;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Any direct child that is in normal flow (i.e. the active non-canvas view)
+   should fill the available height. */
+.primary-view-router > * {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+.primary-view-canvas-slot {
+  display: flex;
+  flex-direction: column;
+}
+
+/* When another nav is active the canvas stays mounted but is pushed behind
+   the active view and made invisible so xterm WebSockets and instances
+   survive the tab switch without tearing down.
+   Using position:absolute removes it from flex flow so the active view
+   fills the router unobstructed; z-index:-1 keeps it below everything. */
+.primary-view-canvas-slot--hidden {
+  position: absolute;
+  inset: 0;
+  visibility: hidden;
+  pointer-events: none;
+  z-index: -1;
 }

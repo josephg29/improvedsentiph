@@ -1,6 +1,6 @@
 # Contributing
 
-Octogent is an experimental personal project and is not actively reviewing pull requests right now. If you still open one, keep changes small, test-backed, and easy to review.
+`sentiph` is an experimental personal project and is not actively reviewing pull requests right now. If you still open one, keep changes small, test-backed, and easy to review.
 
 ## Before you change anything
 
@@ -14,7 +14,7 @@ Octogent is an experimental personal project and is not actively reviewing pull 
 - Node.js `22+`
 - pnpm
 - `claude` for the supported agent workflow
-- `git` for worktree features
+- `git` for isolated worktree agents
 
 ## Setup
 
@@ -52,7 +52,7 @@ Use `pnpm format` if you need to rewrite formatting.
 ## Docs policy
 
 - `docs/` is for contributor and future-agent understanding
-- if you change tentacles, todos, terminals, orchestration, or messaging, update the matching docs page
+- if you change the canvas, agents, orchestration, messaging, or Activity, update the matching docs page
 
 ## Pull request expectations
 
@@ -66,9 +66,9 @@ Use `pnpm format` if you need to rewrite formatting.
 
 ## Areas that matter most right now
 
-- tentacle model and agent-facing context files
-- todo parsing and delegation flow
-- Claude Code terminal lifecycle
+- the live canvas and agent nodes
+- Claude Code agent lifecycle
 - child-agent orchestration
 - inter-agent messaging
-- fixing existing issues and optimize for reliability
+- Activity (git activity and token usage) and Settings
+- fixing existing issues and optimizing for reliability

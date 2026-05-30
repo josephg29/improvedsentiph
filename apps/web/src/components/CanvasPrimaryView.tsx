@@ -435,6 +435,34 @@ export const CanvasPrimaryView = ({
       const node = nodesById.get(nodeId);
       if (!node) return;
 
+      // The hub IS sentiph: clicking it opens the orchestrator terminal (the
+      // top-level, no-parent session). If none exists yet, create one and
+      // auto-open it once it lands in the graph.
+      if (node.type === "hub") {
+        const orchestrator = columns.find((entry) => !entry.parentTerminalId);
+        if (orchestrator) {
+          const orchestratorNodeId = buildActiveSessionNodeId(orchestrator.terminalId);
+          const resolvedNode =
+            resolveActiveSessionNode(orchestrator.terminalId) ?? nodesById.get(orchestratorNodeId);
+          if (resolvedNode) {
+            setSelectedNodeId(orchestratorNodeId);
+            setOpenTerminals((prev) => {
+              const next = new Map(prev);
+              next.set(orchestratorNodeId, { ...resolvedNode });
+              return next;
+            });
+          }
+          return;
+        }
+        const result = onCreateTerminal?.();
+        if (result && typeof result.then === "function") {
+          void result.then((agentId) => {
+            if (agentId) setPendingOpenAgentId(agentId);
+          });
+        }
+        return;
+      }
+
       if (node.type === "active-session") {
         const resolvedNode = node.sessionId
           ? (resolveActiveSessionNode(node.sessionId) ?? node)
@@ -450,7 +478,7 @@ export const CanvasPrimaryView = ({
         });
       }
     },
-    [nodesById, resolveActiveSessionNode],
+    [columns, nodesById, onCreateTerminal, resolveActiveSessionNode],
   );
 
   const setPanelRef = useCallback(

@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { WorkspaceSetupStepId } from "@octogent/core";
+import type { WorkspaceSetupStepId } from "@sentiph/core";
 
 const SETUP_STATE_RELATIVE_PATH = join("state", "setup.json");
 const VERIFIED_SETUP_STEP_IDS = ["check-claude", "check-git", "check-curl"] as const;
@@ -9,7 +9,7 @@ type VerifiedSetupStepId = (typeof VERIFIED_SETUP_STEP_IDS)[number];
 
 export type SetupState = {
   version: 1;
-  tentaclesInitializedAt?: string;
+  agentsInitializedAt?: string;
   verifiedSteps?: Partial<Record<VerifiedSetupStepId, string>>;
 };
 
@@ -37,8 +37,8 @@ export const readSetupState = (stateDir: string): SetupState => {
 
     return {
       version: 1,
-      ...(typeof raw.tentaclesInitializedAt === "string"
-        ? { tentaclesInitializedAt: raw.tentaclesInitializedAt }
+      ...(typeof raw.agentsInitializedAt === "string"
+        ? { agentsInitializedAt: raw.agentsInitializedAt }
         : {}),
       ...(Object.keys(verifiedSteps).length > 0 ? { verifiedSteps } : {}),
     };
@@ -67,14 +67,14 @@ export const markSetupStepVerified = (stateDir: string, stepId: WorkspaceSetupSt
   });
 };
 
-export const markTentaclesInitialized = (stateDir: string) => {
+export const markAgentsInitialized = (stateDir: string) => {
   const currentState = readSetupState(stateDir);
-  if (currentState.tentaclesInitializedAt) {
+  if (currentState.agentsInitializedAt) {
     return;
   }
 
   writeSetupState(stateDir, {
     ...currentState,
-    tentaclesInitializedAt: new Date().toISOString(),
+    agentsInitializedAt: new Date().toISOString(),
   });
 };

@@ -1,4 +1,4 @@
-import { type TerminalCompletionSoundId, isTerminalCompletionSoundId } from "@octogent/core";
+import { type TerminalCompletionSoundId, isTerminalCompletionSoundId } from "@sentiph/core";
 
 export { type TerminalCompletionSoundId, isTerminalCompletionSoundId };
 

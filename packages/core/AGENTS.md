@@ -6,7 +6,7 @@
 
 ## Relevant Docs
 - `docs/concepts/mental-model.md`
-- `docs/concepts/tentacles.md`
+- `docs/concepts/agents.md`
 - `docs/concepts/runtime-and-api.md`
 - `docs/reference/api.md`
 - `docs/reference/filesystem-layout.md`

@@ -6,12 +6,12 @@
 
 ## Relevant Docs
 - `docs/concepts/mental-model.md`
-- `docs/concepts/tentacles.md`
+- `docs/concepts/agents.md`
 - `docs/concepts/runtime-and-api.md`
 - `docs/guides/working-with-todos.md`
 - `docs/guides/orchestrating-child-agents.md`
 - `docs/guides/inter-agent-messaging.md`
-- Read these when changing interaction models, UI vocabulary, tentacle flows, agent orchestration surfaces, or operator-facing behavior.
+- Read these when changing interaction models, UI vocabulary, agent flows, agent orchestration surfaces, or operator-facing behavior.
 
 ## Module Shape
 - Top-level containers should orchestrate. Move pure constants, parsers, normalizers, and hooks into `src/app/*`.
@@ -25,13 +25,13 @@
 - Preserve the existing token-driven, modular CSS structure and avoid one-off style dumping in unrelated files.
 
 ## UI Conventions
-- Use the existing product vocabulary: agents, sessions, worktrees, logs, pipelines, tentacles, and terminal columns.
-- Preserve the current layout model: terminal columns are the visual unit; tentacles are the contextual grouping.
+- Use the existing product vocabulary: agents, sessions, worktrees, logs, pipelines, agents, and terminal columns.
+- Preserve the current layout model: terminal columns are the visual unit; agents are the contextual grouping.
 - Prefer in-app confirmation and action-panel flows over browser-native dialogs for destructive actions.
 
 ## State
-- Persist layout and UI preferences through the runtime-backed `.octogent` state model, not browser-only storage, unless the feature is explicitly local-only.
-- Keep tentacle IDs stable for routing and runtime identity; user-facing names remain presentation data.
+- Persist layout and UI preferences through the runtime-backed `.sentiph` state model, not browser-only storage, unless the feature is explicitly local-only.
+- Keep agent IDs stable for routing and runtime identity; user-facing names remain presentation data.
 
 ## Testing
 - Add targeted component or runtime tests when changing view-model logic, state reconciliation, or destructive UI flows.

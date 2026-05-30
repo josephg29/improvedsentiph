@@ -10,15 +10,15 @@ describe("buildTerminalList", () => {
         terminalId: "terminal-b",
         label: "terminal-b",
         state: "blocked",
-        tentacleId: "backend",
+        agentId: "backend",
         createdAt: "2026-02-24T10:05:00.000Z",
       },
       {
         terminalId: "terminal-a",
         label: "terminal-a",
         state: "live",
-        tentacleId: "backend",
-        tentacleName: "planner",
+        agentId: "backend",
+        agentName: "planner",
         workspaceMode: "worktree",
         createdAt: "2026-02-24T10:00:00.000Z",
       },
@@ -26,7 +26,7 @@ describe("buildTerminalList", () => {
         terminalId: "terminal-c",
         label: "terminal-c",
         state: "live",
-        tentacleId: "frontend",
+        agentId: "frontend",
         createdAt: "2026-02-24T10:10:00.000Z",
       },
     ]);
@@ -37,14 +37,14 @@ describe("buildTerminalList", () => {
     expect(result.map((t) => t.terminalId)).toEqual(["terminal-a", "terminal-b", "terminal-c"]);
   });
 
-  it("preserves terminal fields including tentacle metadata", async () => {
+  it("preserves terminal fields including agent metadata", async () => {
     const reader = new InMemoryTerminalSnapshotReader([
       {
         terminalId: "terminal-1",
         label: "my-terminal",
         state: "live",
-        tentacleId: "backend",
-        tentacleName: "Backend Dev",
+        agentId: "backend",
+        agentName: "Backend Dev",
         workspaceMode: "worktree",
         createdAt: "2026-02-24T10:00:00.000Z",
       },
@@ -52,8 +52,8 @@ describe("buildTerminalList", () => {
 
     const result = await buildTerminalList(reader);
 
-    expect(result[0]?.tentacleId).toBe("backend");
-    expect(result[0]?.tentacleName).toBe("Backend Dev");
+    expect(result[0]?.agentId).toBe("backend");
+    expect(result[0]?.agentName).toBe("Backend Dev");
     expect(result[0]?.workspaceMode).toBe("worktree");
   });
 
@@ -63,7 +63,7 @@ describe("buildTerminalList", () => {
         terminalId: "terminal-1",
         label: "terminal-1",
         state: "idle",
-        tentacleId: "general",
+        agentId: "general",
         createdAt: "2026-02-24T10:00:00.000Z",
       },
     ]);

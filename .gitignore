@@ -2,7 +2,7 @@
 /.claude
 /.codex
 /context
-/.octogent
+/.sentiph
 /node_modules
 /dist
 /coverage
@@ -11,4 +11,7 @@
 **/.vite/
 **/coverage/
 
-.octogent
+.sentiph
+
+# Local Playwright MCP browser artifacts (snapshots, console logs)
+.playwright-mcp/

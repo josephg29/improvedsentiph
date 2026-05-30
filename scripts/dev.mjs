@@ -4,17 +4,17 @@ import { createServer } from "node:net";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
-const DEFAULT_START_PORT = 8787;
+const DEFAULT_API_PORT = 8787;
 const MAX_PORT_ATTEMPTS = 200;
 
-const parseStartPort = (value) => {
+const parsePort = (value, fallback) => {
   if (!value) {
-    return DEFAULT_START_PORT;
+    return fallback;
   }
 
   const parsed = Number.parseInt(value, 10);
   if (!Number.isInteger(parsed) || parsed < 1 || parsed > 65535) {
-    return DEFAULT_START_PORT;
+    return fallback;
   }
 
   return parsed;
@@ -71,20 +71,21 @@ const findOpenPort = async (startPort) => {
 };
 
 const pnpmCommand = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
-const startPort = parseStartPort(process.env.OCTOGENT_DEV_START_PORT);
-const apiPort = await findOpenPort(startPort);
+// The API server binds 127.0.0.1 (matching this probe), so resolving its port
+// here is reliable. Vite picks its own web port (it auto-increments when a port
+// is busy, e.g. another Sentiph instance), so rather than guess it we read the
+// real URL from Vite's output below and surface it clearly.
+const apiPort = await findOpenPort(parsePort(process.env.SENTIPH_DEV_START_PORT, DEFAULT_API_PORT));
 const apiOrigin = `http://127.0.0.1:${apiPort}`;
-
-console.log(`[octogent-dev] using api port ${apiPort}`);
 
 const monorepoRoot = new URL("..", import.meta.url).pathname.replace(/\/$/, "");
 
 // Resolve project state dir from global registry.
 const resolveProjectStateDir = (workspaceCwd) => {
-  if (process.env.OCTOGENT_PROJECT_STATE_DIR) {
-    return process.env.OCTOGENT_PROJECT_STATE_DIR;
+  if (process.env.SENTIPH_PROJECT_STATE_DIR) {
+    return process.env.SENTIPH_PROJECT_STATE_DIR;
   }
-  const projectConfigPath = join(workspaceCwd, ".octogent", "project.json");
+  const projectConfigPath = join(workspaceCwd, ".sentiph", "project.json");
   if (existsSync(projectConfigPath)) {
     try {
       const projectConfig = JSON.parse(readFileSync(projectConfigPath, "utf-8"));
@@ -92,50 +93,106 @@ const resolveProjectStateDir = (workspaceCwd) => {
         typeof projectConfig.projectId === "string" &&
         projectConfig.projectId.trim().length > 0
       ) {
-        return join(homedir(), ".octogent", "projects", projectConfig.projectId);
+        return join(homedir(), ".sentiph", "projects", projectConfig.projectId);
       }
     } catch {
       // fall through
     }
   }
-  const projectsFile = join(homedir(), ".octogent", "projects.json");
+  const projectsFile = join(homedir(), ".sentiph", "projects.json");
   if (existsSync(projectsFile)) {
     try {
       const registry = JSON.parse(readFileSync(projectsFile, "utf-8"));
       const project = registry.projects?.find((p) => p.path === workspaceCwd);
       if (project) {
         if (typeof project.id === "string" && project.id.trim().length > 0) {
-          return join(homedir(), ".octogent", "projects", project.id);
+          return join(homedir(), ".sentiph", "projects", project.id);
         }
         if (typeof project.name === "string" && project.name.trim().length > 0) {
-          return join(homedir(), ".octogent", "projects", project.name);
+          return join(homedir(), ".sentiph", "projects", project.name);
         }
       }
     } catch {
       // fall through
     }
   }
-  return `${workspaceCwd}/.octogent`;
+  return `${workspaceCwd}/.sentiph`;
 };
 
-const workspaceCwd = process.env.OCTOGENT_WORKSPACE_CWD ?? monorepoRoot;
+const workspaceCwd = process.env.SENTIPH_WORKSPACE_CWD ?? monorepoRoot;
 const projectStateDir = resolveProjectStateDir(workspaceCwd);
+
+console.log(`[sentiph-dev] api server: ${apiOrigin}`);
+console.log("[sentiph-dev] starting web server, the open URL will be shown below...");
 
 const child = spawn(
   pnpmCommand,
-  ["-r", "--parallel", "--filter", "@octogent/api", "--filter", "@octogent/web", "dev"],
+  ["-r", "--parallel", "--filter", "@sentiph/api", "--filter", "@sentiph/web", "dev"],
   {
-    stdio: "inherit",
+    // stdin inherited for interactivity; stdout/stderr piped so we can detect
+    // Vite's chosen URL while still forwarding all output to the console.
+    stdio: ["inherit", "pipe", "pipe"],
     env: {
       ...process.env,
-      OCTOGENT_API_PORT: String(apiPort),
-      OCTOGENT_API_ORIGIN: apiOrigin,
-      OCTOGENT_WORKSPACE_CWD: workspaceCwd,
-      OCTOGENT_PROJECT_STATE_DIR: projectStateDir,
-      OCTOGENT_PROMPTS_DIR: process.env.OCTOGENT_PROMPTS_DIR ?? `${monorepoRoot}/prompts`,
+      SENTIPH_API_PORT: String(apiPort),
+      SENTIPH_API_ORIGIN: apiOrigin,
+      SENTIPH_WORKSPACE_CWD: workspaceCwd,
+      SENTIPH_PROJECT_STATE_DIR: projectStateDir,
     },
   },
 );
+
+const maybeOpenBrowser = (url) => {
+  if (process.env.SENTIPH_NO_OPEN === "1" || process.env.CI === "1") {
+    return;
+  }
+
+  const command =
+    process.platform === "darwin"
+      ? { file: "open", args: [url] }
+      : process.platform === "win32"
+        ? { file: "cmd", args: ["/c", "start", "", url] }
+        : { file: "xdg-open", args: [url] };
+
+  try {
+    const opener = spawn(command.file, command.args, { stdio: "ignore", detached: true });
+    opener.unref();
+  } catch {
+    // Best-effort; the printed URL is the fallback.
+  }
+};
+
+let announced = false;
+const announce = (webUrl) => {
+  if (announced) {
+    return;
+  }
+  announced = true;
+  console.log("");
+  console.log("  ──────────────────────────────────────────────");
+  console.log(`  ▶ Open Sentiph:   ${webUrl}`);
+  console.log(`    API server:     ${apiOrigin}  (no UI — don't open this one)`);
+  console.log("  ──────────────────────────────────────────────");
+  console.log("");
+  const timer = setTimeout(() => maybeOpenBrowser(webUrl), 1500);
+  timer.unref?.();
+};
+
+// Vite prints a line like:  ➜  Local:   http://localhost:5175/
+const LOCAL_URL_PATTERN = /Local:\s*(https?:\/\/localhost:\d+)/i;
+
+child.stdout?.on("data", (chunk) => {
+  const text = chunk.toString();
+  process.stdout.write(text);
+  const match = text.match(LOCAL_URL_PATTERN);
+  if (match?.[1]) {
+    announce(match[1].replace(/\/+$/, ""));
+  }
+});
+
+child.stderr?.on("data", (chunk) => {
+  process.stderr.write(chunk);
+});
 
 const forwardSignal = (signal) => {
   if (child.killed) {

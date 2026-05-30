@@ -1,4 +1,4 @@
-.terminal-pane {
+﻿.terminal-pane {
   min-height: 0;
   display: grid;
   grid-template-rows: auto 1fr;
@@ -28,13 +28,9 @@
 }
 
 .terminal-pane--selected .terminal-header {
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--accent-primary) 90%, #ffd89d 10%) 0%,
-    color-mix(in srgb, var(--accent-primary) 78%, #d9851c 22%) 100%
-  );
-  border-bottom-color: color-mix(in srgb, #121212 35%, transparent);
-  color: #121212;
+  background: #fafafa;
+  border-bottom-color: #ddd;
+  color: #111;
 }
 
 .terminal-header[data-connection-state="connected"] {
@@ -186,7 +182,7 @@
 }
 
 .terminal-add {
-  --action-button-color: #f8c26a;
+  --action-button-color: #111;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -215,7 +211,7 @@
 }
 
 .terminal-delete {
-  --action-button-color: #ff8f8f;
+  --action-button-color: #888;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -243,7 +239,7 @@
   min-height: 0;
   overflow: hidden;
   padding: 0;
-  background: color-mix(in srgb, var(--terminal-bg) 78%, #090d13 22%);
+  background: color-mix(in srgb, var(--terminal-bg) 78%, #000000 22%);
 }
 
 .terminal-mount .xterm {
@@ -316,7 +312,7 @@
 .pill.processing,
 .status-badge.processing {
   background: var(--term-green);
-  color: #031700;
+  color: #fafafa;
 }
 
 .pill.queued,

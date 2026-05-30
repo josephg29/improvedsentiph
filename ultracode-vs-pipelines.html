@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ultracode vs. Sentiph pipelines</title>
+<style>
+  :root {
+    --bg: #0b0d10;
+    --panel: #14181d;
+    --panel-2: #1a2027;
+    --line: #232b34;
+    --ink: #e8edf2;
+    --muted: #9aa7b4;
+    --accent: #4f9dff;
+    --good: #25a244;
+    --warn: #b87000;
+    --bad: #d6455d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: radial-gradient(1200px 600px at 70% -10%, #11202f 0%, var(--bg) 55%);
+    color: var(--ink);
+    font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    padding: 48px 20px;
+  }
+  .wrap { max-width: 840px; margin: 0 auto; }
+  .kicker { color: var(--accent); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; font-size: 12px; }
+  h1 { font-size: 30px; line-height: 1.2; margin: 8px 0 6px; }
+  .lede { color: var(--muted); font-size: 17px; margin: 0 0 28px; }
+  .verdict {
+    display: flex; gap: 14px; align-items: flex-start;
+    background: linear-gradient(180deg, #1c1410, #14181d);
+    border: 1px solid #4a361f; border-left: 4px solid var(--warn);
+    border-radius: 12px; padding: 16px 18px; margin: 0 0 30px;
+  }
+  .verdict .dot { font-size: 22px; line-height: 1; }
+  .verdict b { color: #ffcf8f; }
+  section { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 20px 22px; margin: 0 0 18px; }
+  h2 { font-size: 18px; margin: 0 0 12px; }
+  h2 .n { color: var(--accent); font-variant-numeric: tabular-nums; margin-right: 8px; }
+  p { margin: 0 0 12px; }
+  .muted { color: var(--muted); }
+  code { background: var(--panel-2); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; font-size: 13px; color: #cfe3ff; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 6px 0 2px; }
+  .card { background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+  .card h3 { margin: 0 0 8px; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+  .tag { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
+  .tag.sent { background: rgba(79,157,255,.15); color: #8fc0ff; border: 1px solid #2c4a6b; }
+  .tag.ultra { background: rgba(214,69,93,.14); color: #ff9fad; border: 1px solid #5e2b33; }
+  ul { margin: 6px 0 0; padding-left: 18px; }
+  li { margin: 4px 0; }
+  .flow { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; color: #bcd; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+  .bad { color: var(--bad); }
+  .good { color: var(--good); }
+  .fix { background: linear-gradient(180deg, #0f1a12, #14181d); border: 1px solid #234b30; border-left: 4px solid var(--good); }
+  pre { margin: 10px 0 0; background: #0c0f13; border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; overflow-x: auto; font-size: 12.5px; color: #d7e2ee; }
+  .foot { color: var(--muted); font-size: 13px; margin-top: 22px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="kicker">Sentiph · orchestration model</div>
+  <h1>If the parent runs in ultracode, does it still use workers &amp; pipelines?</h1>
+  <p class="lede">Short answer: the Sentiph tools stay <i>available</i>, but ultracode actively biases the parent toward its <i>own</i> dynamic fan-out — and that quietly undoes the reason pipelines exist.</p>
+
+  <div class="verdict">
+    <div class="dot">⚠️</div>
+    <div>
+      <b>It will tend to abandon the pipeline for substantive coding tasks</b> unless you explicitly forbid it.
+      ultracode's standing rule is <i>"author and run a Workflow for every substantive task by default."</i>
+      The Sentiph prompt's rule is <i>"code changes → <code>build</code> (pipeline)."</i> Those two instructions fight,
+      and ultracode is the louder, more recent default.
+    </div>
+  </div>
+
+  <section>
+    <h2><span class="n">1</span>They're two different orchestration engines</h2>
+    <p>This is the crux. "Workers/pipelines" and "ultracode" are not the same machinery — they don't share a runtime.</p>
+    <div class="cols">
+      <div class="card">
+        <h3><span class="tag sent">Sentiph</span> MCP workers &amp; pipelines</h3>
+        <ul>
+          <li>Real <b>PTY terminals</b> spawned over the HTTP API</li>
+          <li>Invoked via MCP tools <code>build</code> / <code>spawn_terminal</code></li>
+          <li><code>build</code> = deterministic <b>build → check → fix</b> conductor</li>
+          <li>Git <b>worktree-isolated</b>, schema-validated</li>
+          <li>Shows up as <b>nodes on the canvas</b></li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3><span class="tag ultra">ultracode</span> Workflow subagents</h3>
+        <ul>
+          <li><b>Ephemeral in-process</b> agents (Agent/Workflow tools)</li>
+          <li>The orchestration <b>script is written by the LLM</b></li>
+          <li>Control flow is <b>model-decided</b>, per task</li>
+          <li>No worktree, no conductor, no schema gate</li>
+          <li><b>Invisible</b> to the Sentiph operator UI</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">2</span>It contradicts the core principle</h2>
+    <p>Sentiph's whole bet was <b>"deterministic conductor, non-deterministic workers"</b> — keep control flow <i>out</i> of the LLM. ultracode is the opposite bet: the LLM <i>is</i> the conductor and writes the fan-out on the fly.</p>
+    <div class="flow">
+      pipeline:&nbsp; <span class="good">code → build → check → fix → done</span> &nbsp;(routing is pure, tested)<br>
+      ultracode:&nbsp; <span class="bad">code → "let me design a workflow" → N model-chosen subagents</span> &nbsp;(routing is vibes)
+    </div>
+    <p class="muted" style="margin-top:12px">That second line is <i>exactly</i> the "agent soup slop" you built pipelines to kill. Running the parent in ultracode reintroduces it.</p>
+  </section>
+
+  <section>
+    <h2><span class="n">3</span>You'd also lose canvas visibility</h2>
+    <p>ultracode subagents live inside the parent's process. They <b>don't</b> create Sentiph terminals, so they never become nodes, never get a worktree, and never hit the conductor. You'd be back to a single opaque agent doing everything — the operator canvas would show one parent and nothing underneath.</p>
+  </section>
+
+  <section class="fix">
+    <h2><span class="n">4</span>If you want both: give the Sentiph prompt hard precedence</h2>
+    <p>The fix is a one-line escalation in the orchestrator system prompt so the model can't reach for in-process fan-out. Make orchestration flow <i>only</i> through the MCP tools:</p>
+    <pre>Orchestration happens ONLY through the Sentiph MCP tools
+(build, spawn_terminal). Do NOT use the Workflow or Agent
+tools, and do NOT author your own multi-agent workflows —
+every code change must go through `build`; every read-only
+or research task through `spawn_terminal`. This holds even
+in ultracode.</pre>
+    <p class="muted" style="margin-top:12px">With that, the parent stays clean, building still runs through the worker terminal's pipeline, and the canvas stays honest — ultracode or not.</p>
+  </section>
+
+  <p class="foot">TL;DR — available, yes; default, no. Without an explicit "MCP-only" clause, ultracode wins and you lose determinism + canvas visibility. One sentence in the system prompt reconciles them.</p>
+
+</div>
+</body>
+</html>

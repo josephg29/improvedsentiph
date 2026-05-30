@@ -1,12 +1,12 @@
 # Orchestrating Child Agents
 
-Octogent uses child terminals to split work into parallel streams.
+`sentiph` uses child agents to split work into parallel streams.
 
 ## How spawning works
 
-A child agent is a normal terminal record with `parentTerminalId` set. The relationship is stored in the terminal registry and shown in the UI; the child still has its own terminal ID, lifecycle state, transcript, workspace mode, and optional worktree.
+A child agent is a normal agent record with `parentTerminalId` set. The relationship is stored in the agent registry and shown on the canvas as a node linked to its parent; the child still has its own agent ID, lifecycle state, transcript, workspace mode, and optional worktree.
 
-Deck creates child agents from todo items by resolving prompt templates. The prompt receives the tentacle name, tentacle ID, path to `.octogent/tentacles/<tentacle-id>/`, todo text, terminal ID, API port, workspace guidance, and parent terminal ID when a parent exists.
+A parent agent creates child agents by resolving prompt templates. The prompt receives the scoped task, the path to the workspace, the agent ID, the API port, workspace guidance, and the parent agent ID.
 
 ## When to use child agents
 
@@ -14,20 +14,18 @@ Use child agents when:
 
 - tasks are independent enough to run in parallel
 - the parent can define clean scopes
-- each task fits one tentacle or one todo item
+- each task is narrow and self-contained
 - the expected file overlap is low or worktree mode is available
 
 Do not use them when the work is too entangled and the agents will overwrite each other.
 
 ## Recommended workflow
 
-1. create or pick a tentacle
-2. write or refine `CONTEXT.md`
-3. break the work into checkbox items in `todo.md`
-4. spawn worker terminals from those items
-5. review results in the parent terminal
-6. use channel messages when workers need to coordinate
-7. update `todo.md` only after reviewing the result
+1. pick the parent agent that owns the job
+2. define clear, narrow tasks for each worker
+3. spawn worker agents for those tasks
+4. review results in the parent agent
+5. use channel messages when workers need to coordinate
 
 ## Shared vs worktree
 
@@ -45,30 +43,30 @@ Use `worktree` when:
 
 In shared mode, workers all run in the main workspace and are told not to commit. This is faster but relies on careful scoping and review.
 
-In worktree mode, each worker gets a branch named `octogent/<worker-terminal-id>` under `.octogent/worktrees/<worker-terminal-id>/` and is told to commit its work. The parent coordinator is responsible for merging branches, running tests, and updating tentacle state.
+In worktree mode, each worker gets a branch named `sentiph/<worker-agent-id>` under `.sentiph/worktrees/<worker-agent-id>/` and is told to commit its work. The parent coordinator is responsible for merging branches and running tests.
 
 ## Parent coordinator behavior
 
-When a swarm has more than one target item, Octogent creates a parent terminal like `<tentacle-id>-swarm-parent`. The parent prompt contains:
+When a parent fans out to more than one worker, `sentiph` creates a coordinator-shaped prompt for the parent. The parent prompt contains:
 
-- the list of worker terminal IDs and assigned todo indices
-- commands for creating each worker terminal
-- communication instructions for `octogent channel send`
+- the list of worker agent IDs and their assigned tasks
+- commands for creating each worker agent
+- communication instructions for `sentiph channel send`
 - a completion strategy for shared mode or worktree mode
-- the final requirement to review, test, and update tentacle docs/todos
+- the final requirement to review and test
 
-The parent is intentionally not a magic scheduler. It is an agent session with explicit instructions and a visible terminal. That makes orchestration inspectable and interruptible.
+The parent is intentionally not a magic scheduler. It is an agent session with explicit instructions and a visible node on the canvas. That makes orchestration inspectable and interruptible.
 
 ## Worker limits and identity
 
-Each parent can have up to 9 child terminals. If a swarm has more incomplete todo items than that, Octogent uses todo order as priority order and defers the overflow.
+Each parent can have up to 9 child agents. If a job has more tasks than that, `sentiph` uses task order as priority order and defers the overflow.
 
-Worker terminal IDs are derived from the tentacle ID and todo index. That makes duplicate detection simple: Octogent refuses to start a second active solve or swarm for the same item pattern.
+Worker agent IDs are derived from the parent and task index. That makes duplicate detection simple: `sentiph` refuses to start a second active worker for the same task pattern.
 
 ## Limits
 
 - PTY sessions do not survive API restarts
 - channel messages are in-memory only
-- delegation quality depends on the quality of `CONTEXT.md` and `todo.md`
+- delegation quality depends on how clearly each task is scoped
 - shared-mode workers can still collide in files, because shared mode is not git isolation
 - worktree-mode workers still need a human or parent merge step before their work reaches the base branch

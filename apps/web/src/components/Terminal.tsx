@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { FileText, X } from "lucide-react";
+import { X } from "lucide-react";
 import { buildTerminalSocketUrl } from "../runtime/runtimeEndpoints";
 import { type AgentRuntimeState, AgentStateBadge, isAgentRuntimeState } from "./AgentStateBadge";
-import { TerminalPromptPicker } from "./TerminalPromptPicker";
 import { replayTerminalHistory } from "./terminalReplay";
 import { wheelDeltaToScrollLines } from "./terminalWheel";
 
@@ -15,10 +14,9 @@ type TerminalProps = {
   layoutVersion?: string | number;
   isSelected?: boolean;
   initialPrompt?: string;
-  hidePromptPicker?: boolean;
   onSelectTerminal?: (terminalId: string) => void;
   onAgentRuntimeStateChange?: (state: AgentRuntimeState) => void;
-  onTerminalRenamed?: ((terminalId: string, tentacleName: string) => void) | undefined;
+  onTerminalRenamed?: ((terminalId: string, agentName: string) => void) | undefined;
   onTerminalActivity?: ((terminalId: string) => void) | undefined;
 };
 
@@ -39,7 +37,7 @@ type TerminalHistoryMessage = {
 
 type TerminalRenameMessage = {
   type: "rename";
-  tentacleName: string;
+  agentName: string;
 };
 
 type TerminalActivityMessage = {
@@ -71,7 +69,6 @@ export const Terminal = ({
   layoutVersion,
   isSelected,
   initialPrompt,
-  hidePromptPicker,
   onSelectTerminal,
   onAgentRuntimeStateChange,
   onTerminalRenamed,
@@ -82,8 +79,6 @@ export const Terminal = ({
   const [connectionState, setConnectionState] = useState("connecting");
   const [agentState, setAgentRuntimeState] = useState<AgentRuntimeState>("idle");
   const [isPromptBannerDismissed, setIsPromptBannerDismissed] = useState(false);
-  const [isPromptPickerOpen, setIsPromptPickerOpen] = useState(false);
-  const promptPickerBtnRef = useRef<HTMLButtonElement | null>(null);
   const terminalRef = useRef<{
     write: (value: string, callback?: () => void) => void;
     scrollLines: (lineCount: number) => void;
@@ -107,13 +102,6 @@ export const Terminal = ({
   useEffect(() => {
     onAgentRuntimeStateChange?.(agentState);
   }, [agentState, onAgentRuntimeStateChange]);
-
-  const handlePromptPickerSelect = useCallback((content: string) => {
-    const ws = socketRef.current;
-    if (ws && ws.readyState === 1) {
-      ws.send(JSON.stringify({ type: "input", data: content }));
-    }
-  }, []);
 
   useEffect(() => {
     let isCancelled = false;
@@ -205,8 +193,8 @@ export const Terminal = ({
             return;
           }
 
-          if (payload.type === "rename" && typeof payload.tentacleName === "string") {
-            onTerminalRenamedRef.current?.(terminalId, payload.tentacleName);
+          if (payload.type === "rename" && typeof payload.agentName === "string") {
+            onTerminalRenamedRef.current?.(terminalId, payload.agentName);
             return;
           }
 
@@ -485,31 +473,6 @@ export const Terminal = ({
           </div>
         )}
         <div className="terminal-header-actions">
-          {!hidePromptPicker && (
-            <div className="terminal-prompt-picker-anchor">
-              <button
-                ref={promptPickerBtnRef}
-                type="button"
-                className="terminal-prompt-picker-btn"
-                title="Insert prompt"
-                aria-label="Insert prompt"
-                onClick={() => {
-                  setIsPromptPickerOpen((prev) => !prev);
-                }}
-              >
-                <FileText size={13} />
-                <span className="terminal-prompt-picker-label">Prompts</span>
-              </button>
-              <TerminalPromptPicker
-                isOpen={isPromptPickerOpen}
-                anchorRef={promptPickerBtnRef}
-                onClose={() => {
-                  setIsPromptPickerOpen(false);
-                }}
-                onSelectPrompt={handlePromptPickerSelect}
-              />
-            </div>
-          )}
           <AgentStateBadge state={agentState} />
         </div>
       </div>

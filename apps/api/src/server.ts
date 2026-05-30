@@ -14,16 +14,15 @@ const parsePort = (value: string | undefined, fallback: number) => {
 };
 
 const host = process.env.HOST ?? "127.0.0.1";
-const port = parsePort(process.env.OCTOGENT_API_PORT ?? process.env.PORT, 8787);
-const allowRemoteAccess = process.env.OCTOGENT_ALLOW_REMOTE_ACCESS === "1";
-const workspaceCwd = process.env.OCTOGENT_WORKSPACE_CWD ?? process.cwd();
-const projectStateDir = process.env.OCTOGENT_PROJECT_STATE_DIR;
-const promptsDir = process.env.OCTOGENT_PROMPTS_DIR;
-const webDistDir = process.env.OCTOGENT_WEB_DIST_DIR;
+const port = parsePort(process.env.SENTIPH_API_PORT ?? process.env.PORT, 8787);
+const allowRemoteAccess = process.env.SENTIPH_ALLOW_REMOTE_ACCESS === "1";
+const workspaceCwd = process.env.SENTIPH_WORKSPACE_CWD ?? process.cwd();
+const projectStateDir = process.env.SENTIPH_PROJECT_STATE_DIR;
+const webDistDir = process.env.SENTIPH_WEB_DIST_DIR;
 
 // Validate startup environment
 const validateStartupEnv = () => {
-  const rawPort = process.env.OCTOGENT_API_PORT ?? process.env.PORT;
+  const rawPort = process.env.SENTIPH_API_PORT ?? process.env.PORT;
   if (rawPort !== undefined) {
     const parsed = Number.parseInt(rawPort, 10);
     if (!Number.isFinite(parsed) || parsed < 1 || parsed > 65535) {
@@ -32,16 +31,16 @@ const validateStartupEnv = () => {
     }
   }
 
-  if (process.env.OCTOGENT_WORKSPACE_CWD && !existsSync(process.env.OCTOGENT_WORKSPACE_CWD)) {
+  if (process.env.SENTIPH_WORKSPACE_CWD && !existsSync(process.env.SENTIPH_WORKSPACE_CWD)) {
     console.error(
-      `OCTOGENT_WORKSPACE_CWD directory does not exist: ${process.env.OCTOGENT_WORKSPACE_CWD}`,
+      `SENTIPH_WORKSPACE_CWD directory does not exist: ${process.env.SENTIPH_WORKSPACE_CWD}`,
     );
     process.exit(1);
   }
 
-  if (process.env.OCTOGENT_WEB_DIST_DIR && !existsSync(process.env.OCTOGENT_WEB_DIST_DIR)) {
+  if (process.env.SENTIPH_WEB_DIST_DIR && !existsSync(process.env.SENTIPH_WEB_DIST_DIR)) {
     console.warn(
-      `OCTOGENT_WEB_DIST_DIR directory does not exist: ${process.env.OCTOGENT_WEB_DIST_DIR} — web UI will be unavailable.`,
+      `SENTIPH_WEB_DIST_DIR directory does not exist: ${process.env.SENTIPH_WEB_DIST_DIR} — web UI will be unavailable.`,
     );
   }
 };
@@ -51,7 +50,6 @@ validateStartupEnv();
 const apiServer = createApiServer({
   workspaceCwd,
   projectStateDir,
-  promptsDir,
   webDistDir,
   allowRemoteAccess,
 });
@@ -72,7 +70,7 @@ process.on("SIGTERM", () => {
 apiServer
   .start(port, host)
   .then(({ port: activePort }) => {
-    console.log(`Octogent API listening on http://${host}:${activePort}`);
+    console.log(`Sentiph API listening on http://${host}:${activePort}`);
   })
   .catch((error: unknown) => {
     console.error(error);

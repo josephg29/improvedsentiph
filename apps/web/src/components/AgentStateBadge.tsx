@@ -1,8 +1,8 @@
-import { type AgentRuntimeState, isAgentRuntimeState } from "@octogent/core";
+import { type AgentRuntimeState, isAgentRuntimeState } from "@sentiph/core";
 import { StatusBadge, type StatusBadgeTone } from "./ui/StatusBadge";
 
-export type { AgentRuntimeState } from "@octogent/core";
-export { isAgentRuntimeState } from "@octogent/core";
+export type { AgentRuntimeState } from "@sentiph/core";
+export { isAgentRuntimeState } from "@sentiph/core";
 
 type AgentStateBadgeProps = {
   state: AgentRuntimeState;

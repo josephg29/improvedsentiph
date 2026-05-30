@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import type { AgentRuntimeState } from "@octogent/core";
+import type { AgentRuntimeState } from "@sentiph/core";
 
 import type { TerminalView } from "./types";
 

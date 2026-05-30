@@ -1,5 +1,5 @@
 {
-  "name": "@octogent/web",
+  "name": "@sentiph/web",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -9,7 +9,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@octogent/core": "workspace:*",
+    "@sentiph/core": "workspace:*",
     "@xterm/addon-fit": "^0.11.0",
     "d3-force": "^3.0.0",
     "lucide-react": "^1.7.0",

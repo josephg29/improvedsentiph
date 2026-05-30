@@ -5,7 +5,7 @@ import type {
   GitHubCommitPoint,
   GitHubRecentCommit,
   GitHubRepoSummarySnapshot,
-} from "@octogent/core";
+} from "@sentiph/core";
 
 const execFileAsync = promisify(execFile);
 const COMMIT_SERIES_DAYS = 30;

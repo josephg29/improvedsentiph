@@ -21,17 +21,17 @@ describe("useAgentRuntimeStates", () => {
     const socketSpy = globalThis.WebSocket;
     const columns = [
       {
-        terminalId: "tentacle-idle",
-        label: "tentacle-idle",
+        terminalId: "agent-idle",
+        label: "agent-idle",
         state: "live",
-        tentacleId: "docs-knowledge",
+        agentId: "docs-knowledge",
         createdAt: "2026-04-09T10:00:00.000Z",
       },
       {
         terminalId: "docs-knowledge-swarm-parent",
         label: "docs-knowledge-swarm-parent",
         state: "live",
-        tentacleId: "docs-knowledge",
+        agentId: "docs-knowledge",
         createdAt: "2026-04-09T10:05:00.000Z",
         agentRuntimeState: "processing",
       },

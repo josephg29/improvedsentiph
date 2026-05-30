@@ -5,7 +5,7 @@ import type { TerminalAgentProvider, TerminalView, TerminalWorkspaceMode } from 
 
 export type PendingDeleteTerminal = {
   terminalId: string;
-  tentacleName: string;
+  agentName: string;
   workspaceMode: TerminalWorkspaceMode;
   intent: "close-terminal" | "delete-terminal" | "cleanup-worktree";
 };
@@ -30,7 +30,7 @@ type UseTerminalMutationsResult = {
   createTerminal: (
     workspaceMode: TerminalWorkspaceMode,
     agentProvider?: TerminalAgentProvider,
-    tentacleId?: string,
+    agentId?: string,
   ) => Promise<string | undefined>;
   requestDeleteTerminal: (
     terminalId: string,
@@ -117,7 +117,7 @@ export const useTerminalMutations = ({
     async (
       workspaceMode: TerminalWorkspaceMode,
       agentProvider?: TerminalAgentProvider,
-      tentacleId?: string,
+      agentId?: string,
     ) => {
       try {
         setIsCreatingTerminal(true);
@@ -131,7 +131,7 @@ export const useTerminalMutations = ({
           body: JSON.stringify({
             workspaceMode,
             agentProvider: agentProvider ?? "claude-code",
-            ...(tentacleId ? { tentacleId } : {}),
+            ...(agentId ? { agentId } : {}),
           }),
         });
 
@@ -141,7 +141,7 @@ export const useTerminalMutations = ({
 
         const createdSnapshot = (await response.json()) as {
           terminalId?: unknown;
-          tentacleName?: unknown;
+          agentName?: unknown;
         };
         const nextColumns = await readColumns();
         setColumns(nextColumns);
@@ -154,9 +154,9 @@ export const useTerminalMutations = ({
 
         const createdEntry = nextColumns.find((entry) => entry.terminalId === createdTerminalId);
         const createdTerminalName =
-          createdEntry?.tentacleName ??
-          (typeof createdSnapshot.tentacleName === "string"
-            ? createdSnapshot.tentacleName
+          createdEntry?.agentName ??
+          (typeof createdSnapshot.agentName === "string"
+            ? createdSnapshot.agentName
             : createdTerminalId);
         setMinimizedTerminalIds((current) => current.filter((id) => id !== createdTerminalId));
         beginTerminalNameEdit(createdTerminalId, createdTerminalName);
@@ -183,7 +183,7 @@ export const useTerminalMutations = ({
       setLoadError(null);
       setPendingDeleteTerminal({
         terminalId,
-        tentacleName: terminalName,
+        agentName: terminalName,
         workspaceMode: options?.workspaceMode ?? "shared",
         intent: options?.intent ?? "delete-terminal",
       });

@@ -1,9 +1,9 @@
 export const TERMINAL_ID_PREFIX = "terminal-";
 export const TERMINAL_REGISTRY_VERSION = 3;
-export const TERMINAL_REGISTRY_RELATIVE_PATH = ".octogent/state/tentacles.json";
-export const TERMINAL_TRANSCRIPT_RELATIVE_PATH = ".octogent/state/transcripts";
-export const TENTACLE_WORKTREE_RELATIVE_PATH = ".octogent/worktrees";
-export const TENTACLE_WORKTREE_BRANCH_PREFIX = "octogent/";
+export const TERMINAL_REGISTRY_RELATIVE_PATH = ".sentiph/state/agents.json";
+export const TERMINAL_TRANSCRIPT_RELATIVE_PATH = ".sentiph/state/transcripts";
+export const AGENT_WORKTREE_RELATIVE_PATH = ".sentiph/worktrees";
+export const AGENT_WORKTREE_BRANCH_PREFIX = "sentiph/";
 export const DEFAULT_AGENT_PROVIDER = "claude-code" as const;
 
 export const TERMINAL_BOOTSTRAP_COMMANDS: Record<string, string> = {

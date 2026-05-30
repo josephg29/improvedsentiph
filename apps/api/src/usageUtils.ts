@@ -1,4 +1,4 @@
-import { asNumber } from "@octogent/core";
+import { asNumber } from "@sentiph/core";
 
 export const toResetIso = (value: unknown): string | null => {
   if (typeof value === "string") {

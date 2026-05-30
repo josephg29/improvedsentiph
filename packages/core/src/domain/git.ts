@@ -1,10 +1,10 @@
-import type { TentacleWorkspaceMode } from "./terminal";
+import type { AgentWorkspaceMode } from "./terminal";
 
-export type TentaclePullRequestStatus = "none" | "open" | "merged" | "closed";
+export type AgentPullRequestStatus = "none" | "open" | "merged" | "closed";
 
-export type TentacleGitStatusSnapshot = {
-  tentacleId: string;
-  workspaceMode: TentacleWorkspaceMode;
+export type AgentGitStatusSnapshot = {
+  agentId: string;
+  workspaceMode: AgentWorkspaceMode;
   branchName: string;
   upstreamBranchName: string | null;
   isDirty: boolean;
@@ -17,10 +17,10 @@ export type TentacleGitStatusSnapshot = {
   defaultBaseBranchName: string | null;
 };
 
-export type TentaclePullRequestSnapshot = {
-  tentacleId: string;
-  workspaceMode: TentacleWorkspaceMode;
-  status: TentaclePullRequestStatus;
+export type AgentPullRequestSnapshot = {
+  agentId: string;
+  workspaceMode: AgentWorkspaceMode;
+  status: AgentPullRequestStatus;
   number: number | null;
   url: string | null;
   title: string | null;

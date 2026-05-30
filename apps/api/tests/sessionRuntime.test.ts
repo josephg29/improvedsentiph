@@ -94,9 +94,9 @@ class FakeWebSocketServer {
   );
 }
 
-const createUpgradeRequest = (tentacleId: string) =>
+const createUpgradeRequest = (agentId: string) =>
   ({
-    url: `/api/terminals/${tentacleId}/ws`,
+    url: `/api/terminals/${agentId}/ws`,
   }) as IncomingMessage;
 
 const parseSentMessages = (socket: FakeWebSocket) =>
@@ -106,7 +106,7 @@ describe("createSessionRuntime", () => {
   const temporaryDirectories: string[] = [];
 
   const createTemporaryDirectory = () => {
-    const directory = mkdtempSync(join(tmpdir(), "octogent-session-runtime-test-"));
+    const directory = mkdtempSync(join(tmpdir(), "sentiph-session-runtime-test-"));
     temporaryDirectories.push(directory);
     return directory;
   };
@@ -126,14 +126,14 @@ describe("createSessionRuntime", () => {
   });
 
   it("keeps a session alive across reconnects and replays scrollback history", () => {
-    const tentacleId = "tentacle-1";
+    const agentId = "agent-1";
     const terminals = new Map<string, PersistedTerminal>([
       [
-        tentacleId,
+        agentId,
         {
-          terminalId: tentacleId,
-          tentacleId,
-          tentacleName: tentacleId,
+          terminalId: agentId,
+          agentId,
+          agentName: agentId,
           createdAt: new Date().toISOString(),
           workspaceMode: "shared",
         },
@@ -149,7 +149,7 @@ describe("createSessionRuntime", () => {
       websocketServer: websocketServer as unknown as import("ws").WebSocketServer,
       terminals,
       sessions,
-      getTentacleWorkspaceCwd: () => process.cwd(),
+      getAgentWorkspaceCwd: () => process.cwd(),
       isDebugPtyLogsEnabled: false,
       ptyLogDir: process.cwd(),
       transcriptDirectoryPath,
@@ -160,18 +160,18 @@ describe("createSessionRuntime", () => {
     const firstSocket = new FakeWebSocket();
     websocketServer.nextSocket = firstSocket;
     expect(
-      runtime.handleUpgrade(createUpgradeRequest(tentacleId), {} as Duplex, Buffer.alloc(0)),
+      runtime.handleUpgrade(createUpgradeRequest(agentId), {} as Duplex, Buffer.alloc(0)),
     ).toBe(true);
 
     pty.emitData("first line\r\n");
     pty.emitData("second line\r\n");
     firstSocket.close();
-    expect(sessions.has(tentacleId)).toBe(true);
+    expect(sessions.has(agentId)).toBe(true);
 
     const secondSocket = new FakeWebSocket();
     websocketServer.nextSocket = secondSocket;
     expect(
-      runtime.handleUpgrade(createUpgradeRequest(tentacleId), {} as Duplex, Buffer.alloc(0)),
+      runtime.handleUpgrade(createUpgradeRequest(agentId), {} as Duplex, Buffer.alloc(0)),
     ).toBe(true);
 
     const secondMessages = parseSentMessages(secondSocket);
@@ -188,14 +188,14 @@ describe("createSessionRuntime", () => {
   it("closes idle sessions after the configured grace timeout", () => {
     vi.useFakeTimers();
 
-    const tentacleId = "tentacle-1";
+    const agentId = "agent-1";
     const terminals = new Map<string, PersistedTerminal>([
       [
-        tentacleId,
+        agentId,
         {
-          terminalId: tentacleId,
-          tentacleId,
-          tentacleName: tentacleId,
+          terminalId: agentId,
+          agentId,
+          agentName: agentId,
           createdAt: new Date().toISOString(),
           workspaceMode: "shared",
         },
@@ -211,7 +211,7 @@ describe("createSessionRuntime", () => {
       websocketServer: websocketServer as unknown as import("ws").WebSocketServer,
       terminals,
       sessions,
-      getTentacleWorkspaceCwd: () => process.cwd(),
+      getAgentWorkspaceCwd: () => process.cwd(),
       isDebugPtyLogsEnabled: false,
       ptyLogDir: process.cwd(),
       transcriptDirectoryPath,
@@ -222,30 +222,30 @@ describe("createSessionRuntime", () => {
     const socket = new FakeWebSocket();
     websocketServer.nextSocket = socket;
     expect(
-      runtime.handleUpgrade(createUpgradeRequest(tentacleId), {} as Duplex, Buffer.alloc(0)),
+      runtime.handleUpgrade(createUpgradeRequest(agentId), {} as Duplex, Buffer.alloc(0)),
     ).toBe(true);
     socket.close();
 
-    expect(sessions.has(tentacleId)).toBe(true);
+    expect(sessions.has(agentId)).toBe(true);
     vi.advanceTimersByTime(999);
-    expect(sessions.has(tentacleId)).toBe(true);
+    expect(sessions.has(agentId)).toBe(true);
 
     vi.advanceTimersByTime(1);
     expect(pty.kill).toHaveBeenCalledTimes(1);
-    expect(sessions.has(tentacleId)).toBe(false);
+    expect(sessions.has(agentId)).toBe(false);
 
     runtime.close();
   });
 
   it("disposes PTY subscriptions when a session is closed", () => {
-    const tentacleId = "tentacle-1";
+    const agentId = "agent-1";
     const terminals = new Map<string, PersistedTerminal>([
       [
-        tentacleId,
+        agentId,
         {
-          terminalId: tentacleId,
-          tentacleId,
-          tentacleName: tentacleId,
+          terminalId: agentId,
+          agentId,
+          agentName: agentId,
           createdAt: new Date().toISOString(),
           workspaceMode: "shared",
         },
@@ -261,7 +261,7 @@ describe("createSessionRuntime", () => {
       websocketServer: websocketServer as unknown as import("ws").WebSocketServer,
       terminals,
       sessions,
-      getTentacleWorkspaceCwd: () => process.cwd(),
+      getAgentWorkspaceCwd: () => process.cwd(),
       isDebugPtyLogsEnabled: false,
       ptyLogDir: process.cwd(),
       transcriptDirectoryPath,
@@ -269,16 +269,16 @@ describe("createSessionRuntime", () => {
       scrollbackMaxBytes: 1024,
     });
 
-    expect(runtime.startSession(tentacleId)).toBe(true);
+    expect(runtime.startSession(agentId)).toBe(true);
     expect(pty.listenerCount("data")).toBe(1);
     expect(pty.listenerCount("exit")).toBe(1);
 
-    expect(runtime.closeSession(tentacleId)).toBe(true);
+    expect(runtime.closeSession(agentId)).toBe(true);
 
     expect(pty.kill).toHaveBeenCalledTimes(1);
     expect(pty.listenerCount("data")).toBe(0);
     expect(pty.listenerCount("exit")).toBe(0);
-    expect(sessions.has(tentacleId)).toBe(false);
+    expect(sessions.has(agentId)).toBe(false);
 
     runtime.close();
   });
@@ -286,14 +286,14 @@ describe("createSessionRuntime", () => {
   it("clears delayed prompt timers when a prompted session is closed", () => {
     vi.useFakeTimers();
 
-    const tentacleId = "tentacle-1";
+    const agentId = "agent-1";
     const terminals = new Map<string, PersistedTerminal>([
       [
-        tentacleId,
+        agentId,
         {
-          terminalId: tentacleId,
-          tentacleId,
-          tentacleName: tentacleId,
+          terminalId: agentId,
+          agentId,
+          agentName: agentId,
           createdAt: new Date().toISOString(),
           workspaceMode: "shared",
           initialPrompt: "Investigate and report back.",
@@ -310,7 +310,7 @@ describe("createSessionRuntime", () => {
       websocketServer: websocketServer as unknown as import("ws").WebSocketServer,
       terminals,
       sessions,
-      getTentacleWorkspaceCwd: () => process.cwd(),
+      getAgentWorkspaceCwd: () => process.cwd(),
       isDebugPtyLogsEnabled: false,
       ptyLogDir: process.cwd(),
       transcriptDirectoryPath,
@@ -318,14 +318,14 @@ describe("createSessionRuntime", () => {
       scrollbackMaxBytes: 1024,
     });
 
-    expect(runtime.startSession(tentacleId)).toBe(true);
+    expect(runtime.startSession(agentId)).toBe(true);
     expect(pty.write).toHaveBeenNthCalledWith(1, "claude\r");
 
-    expect(runtime.closeSession(tentacleId)).toBe(true);
+    expect(runtime.closeSession(agentId)).toBe(true);
     vi.advanceTimersByTime(10_000);
 
     expect(pty.write).toHaveBeenCalledTimes(1);
-    expect(sessions.has(tentacleId)).toBe(false);
+    expect(sessions.has(agentId)).toBe(false);
 
     runtime.close();
   });
@@ -333,14 +333,14 @@ describe("createSessionRuntime", () => {
   it("releases headless prompted sessions after keepalive is dropped", () => {
     vi.useFakeTimers();
 
-    const tentacleId = "tentacle-1";
+    const agentId = "agent-1";
     const terminals = new Map<string, PersistedTerminal>([
       [
-        tentacleId,
+        agentId,
         {
-          terminalId: tentacleId,
-          tentacleId,
-          tentacleName: tentacleId,
+          terminalId: agentId,
+          agentId,
+          agentName: agentId,
           createdAt: new Date().toISOString(),
           workspaceMode: "shared",
           initialPrompt: "Investigate and report back.",
@@ -357,7 +357,7 @@ describe("createSessionRuntime", () => {
       websocketServer: websocketServer as unknown as import("ws").WebSocketServer,
       terminals,
       sessions,
-      getTentacleWorkspaceCwd: () => process.cwd(),
+      getAgentWorkspaceCwd: () => process.cwd(),
       isDebugPtyLogsEnabled: false,
       ptyLogDir: process.cwd(),
       transcriptDirectoryPath,
@@ -365,30 +365,30 @@ describe("createSessionRuntime", () => {
       scrollbackMaxBytes: 1024,
     });
 
-    expect(runtime.startSession(tentacleId)).toBe(true);
+    expect(runtime.startSession(agentId)).toBe(true);
     vi.advanceTimersByTime(10_000);
-    expect(sessions.has(tentacleId)).toBe(true);
+    expect(sessions.has(agentId)).toBe(true);
 
-    expect(runtime.releaseSessionKeepAlive(tentacleId)).toBe(true);
+    expect(runtime.releaseSessionKeepAlive(agentId)).toBe(true);
     vi.advanceTimersByTime(999);
-    expect(sessions.has(tentacleId)).toBe(true);
+    expect(sessions.has(agentId)).toBe(true);
 
     vi.advanceTimersByTime(1);
     expect(pty.kill).toHaveBeenCalledTimes(1);
-    expect(sessions.has(tentacleId)).toBe(false);
+    expect(sessions.has(agentId)).toBe(false);
 
     runtime.close();
   });
 
   it("removes exited sessions without killing the already-exited PTY", () => {
-    const tentacleId = "tentacle-1";
+    const agentId = "agent-1";
     const terminals = new Map<string, PersistedTerminal>([
       [
-        tentacleId,
+        agentId,
         {
-          terminalId: tentacleId,
-          tentacleId,
-          tentacleName: tentacleId,
+          terminalId: agentId,
+          agentId,
+          agentName: agentId,
           createdAt: new Date().toISOString(),
           workspaceMode: "shared",
         },
@@ -404,7 +404,7 @@ describe("createSessionRuntime", () => {
       websocketServer: websocketServer as unknown as import("ws").WebSocketServer,
       terminals,
       sessions,
-      getTentacleWorkspaceCwd: () => process.cwd(),
+      getAgentWorkspaceCwd: () => process.cwd(),
       isDebugPtyLogsEnabled: false,
       ptyLogDir: process.cwd(),
       transcriptDirectoryPath,
@@ -412,13 +412,13 @@ describe("createSessionRuntime", () => {
       scrollbackMaxBytes: 1024,
     });
 
-    expect(runtime.startSession(tentacleId)).toBe(true);
+    expect(runtime.startSession(agentId)).toBe(true);
     pty.emitExit({ exitCode: 0, signal: 0 });
 
     expect(pty.kill).not.toHaveBeenCalled();
     expect(pty.listenerCount("data")).toBe(0);
     expect(pty.listenerCount("exit")).toBe(0);
-    expect(sessions.has(tentacleId)).toBe(false);
+    expect(sessions.has(agentId)).toBe(false);
 
     runtime.close();
   });
@@ -426,21 +426,21 @@ describe("createSessionRuntime", () => {
   it("enforces the configured max concurrent terminal sessions before spawning", () => {
     const terminals = new Map<string, PersistedTerminal>([
       [
-        "tentacle-1",
+        "agent-1",
         {
-          terminalId: "tentacle-1",
-          tentacleId: "tentacle-1",
-          tentacleName: "tentacle-1",
+          terminalId: "agent-1",
+          agentId: "agent-1",
+          agentName: "agent-1",
           createdAt: new Date().toISOString(),
           workspaceMode: "shared",
         },
       ],
       [
-        "tentacle-2",
+        "agent-2",
         {
-          terminalId: "tentacle-2",
-          tentacleId: "tentacle-2",
-          tentacleName: "tentacle-2",
+          terminalId: "agent-2",
+          agentId: "agent-2",
+          agentName: "agent-2",
           createdAt: new Date().toISOString(),
           workspaceMode: "shared",
         },
@@ -456,7 +456,7 @@ describe("createSessionRuntime", () => {
       websocketServer: websocketServer as unknown as import("ws").WebSocketServer,
       terminals,
       sessions,
-      getTentacleWorkspaceCwd: () => process.cwd(),
+      getAgentWorkspaceCwd: () => process.cwd(),
       isDebugPtyLogsEnabled: false,
       ptyLogDir: process.cwd(),
       transcriptDirectoryPath,
@@ -465,25 +465,25 @@ describe("createSessionRuntime", () => {
       maxConcurrentSessions: 1,
     });
 
-    expect(runtime.startSession("tentacle-1")).toBe(true);
-    expect(runtime.startSession("tentacle-2")).toBe(false);
+    expect(runtime.startSession("agent-1")).toBe(true);
+    expect(runtime.startSession("agent-2")).toBe(false);
 
     expect(spawnMock).toHaveBeenCalledTimes(1);
-    expect(sessions.has("tentacle-1")).toBe(true);
-    expect(sessions.has("tentacle-2")).toBe(false);
+    expect(sessions.has("agent-1")).toBe(true);
+    expect(sessions.has("agent-2")).toBe(false);
 
     runtime.close();
   });
 
   it("truncates oversize chunks to the configured scrollback size", () => {
-    const tentacleId = "tentacle-1";
+    const agentId = "agent-1";
     const terminals = new Map<string, PersistedTerminal>([
       [
-        tentacleId,
+        agentId,
         {
-          terminalId: tentacleId,
-          tentacleId,
-          tentacleName: tentacleId,
+          terminalId: agentId,
+          agentId,
+          agentName: agentId,
           createdAt: new Date().toISOString(),
           workspaceMode: "shared",
         },
@@ -499,7 +499,7 @@ describe("createSessionRuntime", () => {
       websocketServer: websocketServer as unknown as import("ws").WebSocketServer,
       terminals,
       sessions,
-      getTentacleWorkspaceCwd: () => process.cwd(),
+      getAgentWorkspaceCwd: () => process.cwd(),
       isDebugPtyLogsEnabled: false,
       ptyLogDir: process.cwd(),
       transcriptDirectoryPath,
@@ -510,7 +510,7 @@ describe("createSessionRuntime", () => {
     const firstSocket = new FakeWebSocket();
     websocketServer.nextSocket = firstSocket;
     expect(
-      runtime.handleUpgrade(createUpgradeRequest(tentacleId), {} as Duplex, Buffer.alloc(0)),
+      runtime.handleUpgrade(createUpgradeRequest(agentId), {} as Duplex, Buffer.alloc(0)),
     ).toBe(true);
     pty.emitData("123456789012");
     firstSocket.close();
@@ -518,7 +518,7 @@ describe("createSessionRuntime", () => {
     const secondSocket = new FakeWebSocket();
     websocketServer.nextSocket = secondSocket;
     expect(
-      runtime.handleUpgrade(createUpgradeRequest(tentacleId), {} as Duplex, Buffer.alloc(0)),
+      runtime.handleUpgrade(createUpgradeRequest(agentId), {} as Duplex, Buffer.alloc(0)),
     ).toBe(true);
 
     const secondMessages = parseSentMessages(secondSocket);
@@ -531,14 +531,14 @@ describe("createSessionRuntime", () => {
   });
 
   it("strips a broken leading ANSI fragment from replayed history after truncation", () => {
-    const tentacleId = "tentacle-1";
+    const agentId = "agent-1";
     const terminals = new Map<string, PersistedTerminal>([
       [
-        tentacleId,
+        agentId,
         {
-          terminalId: tentacleId,
-          tentacleId,
-          tentacleName: tentacleId,
+          terminalId: agentId,
+          agentId,
+          agentName: agentId,
           createdAt: new Date().toISOString(),
           workspaceMode: "shared",
         },
@@ -554,7 +554,7 @@ describe("createSessionRuntime", () => {
       websocketServer: websocketServer as unknown as import("ws").WebSocketServer,
       terminals,
       sessions,
-      getTentacleWorkspaceCwd: () => process.cwd(),
+      getAgentWorkspaceCwd: () => process.cwd(),
       isDebugPtyLogsEnabled: false,
       ptyLogDir: process.cwd(),
       transcriptDirectoryPath,
@@ -565,7 +565,7 @@ describe("createSessionRuntime", () => {
     const firstSocket = new FakeWebSocket();
     websocketServer.nextSocket = firstSocket;
     expect(
-      runtime.handleUpgrade(createUpgradeRequest(tentacleId), {} as Duplex, Buffer.alloc(0)),
+      runtime.handleUpgrade(createUpgradeRequest(agentId), {} as Duplex, Buffer.alloc(0)),
     ).toBe(true);
     pty.emitData("\u001b[48;2;55;55;55mHELLO\r\n");
     firstSocket.close();
@@ -573,7 +573,7 @@ describe("createSessionRuntime", () => {
     const secondSocket = new FakeWebSocket();
     websocketServer.nextSocket = secondSocket;
     expect(
-      runtime.handleUpgrade(createUpgradeRequest(tentacleId), {} as Duplex, Buffer.alloc(0)),
+      runtime.handleUpgrade(createUpgradeRequest(agentId), {} as Duplex, Buffer.alloc(0)),
     ).toBe(true);
 
     const secondMessages = parseSentMessages(secondSocket);
@@ -586,14 +586,14 @@ describe("createSessionRuntime", () => {
   });
 
   it("ignores duplicate resize payloads for the same terminal size", () => {
-    const tentacleId = "tentacle-1";
+    const agentId = "agent-1";
     const terminals = new Map<string, PersistedTerminal>([
       [
-        tentacleId,
+        agentId,
         {
-          terminalId: tentacleId,
-          tentacleId,
-          tentacleName: tentacleId,
+          terminalId: agentId,
+          agentId,
+          agentName: agentId,
           createdAt: new Date().toISOString(),
           workspaceMode: "shared",
         },
@@ -609,7 +609,7 @@ describe("createSessionRuntime", () => {
       websocketServer: websocketServer as unknown as import("ws").WebSocketServer,
       terminals,
       sessions,
-      getTentacleWorkspaceCwd: () => process.cwd(),
+      getAgentWorkspaceCwd: () => process.cwd(),
       isDebugPtyLogsEnabled: false,
       ptyLogDir: process.cwd(),
       transcriptDirectoryPath,
@@ -620,7 +620,7 @@ describe("createSessionRuntime", () => {
     const socket = new FakeWebSocket();
     websocketServer.nextSocket = socket;
     expect(
-      runtime.handleUpgrade(createUpgradeRequest(tentacleId), {} as Duplex, Buffer.alloc(0)),
+      runtime.handleUpgrade(createUpgradeRequest(agentId), {} as Duplex, Buffer.alloc(0)),
     ).toBe(true);
 
     socket.emit("message", JSON.stringify({ type: "resize", cols: 120, rows: 35 }));
@@ -634,14 +634,14 @@ describe("createSessionRuntime", () => {
   });
 
   it("writes normalized transcript events for each terminal session", async () => {
-    const tentacleId = "tentacle-1";
+    const agentId = "agent-1";
     const terminals = new Map<string, PersistedTerminal>([
       [
-        tentacleId,
+        agentId,
         {
-          terminalId: tentacleId,
-          tentacleId,
-          tentacleName: tentacleId,
+          terminalId: agentId,
+          agentId,
+          agentName: agentId,
           createdAt: new Date().toISOString(),
           workspaceMode: "shared",
         },
@@ -657,7 +657,7 @@ describe("createSessionRuntime", () => {
       websocketServer: websocketServer as unknown as import("ws").WebSocketServer,
       terminals,
       sessions,
-      getTentacleWorkspaceCwd: () => process.cwd(),
+      getAgentWorkspaceCwd: () => process.cwd(),
       isDebugPtyLogsEnabled: false,
       ptyLogDir: process.cwd(),
       transcriptDirectoryPath,
@@ -668,14 +668,14 @@ describe("createSessionRuntime", () => {
     const socket = new FakeWebSocket();
     websocketServer.nextSocket = socket;
     expect(
-      runtime.handleUpgrade(createUpgradeRequest(tentacleId), {} as Duplex, Buffer.alloc(0)),
+      runtime.handleUpgrade(createUpgradeRequest(agentId), {} as Duplex, Buffer.alloc(0)),
     ).toBe(true);
 
     socket.emit("message", JSON.stringify({ type: "input", data: "echo hi\r" }));
     pty.emitData("\u001b[31mred\u001b[0m\r\n");
     runtime.close();
 
-    const transcriptPath = join(transcriptDirectoryPath, `${encodeURIComponent(tentacleId)}.jsonl`);
+    const transcriptPath = join(transcriptDirectoryPath, `${encodeURIComponent(agentId)}.jsonl`);
     for (let attempt = 0; attempt < 20; attempt += 1) {
       if (existsSync(transcriptPath)) {
         break;
@@ -698,14 +698,14 @@ describe("createSessionRuntime", () => {
   it("can start a prompted session headlessly and submits the prompt automatically", () => {
     vi.useFakeTimers();
 
-    const tentacleId = "tentacle-1";
+    const agentId = "agent-1";
     const terminals = new Map<string, PersistedTerminal>([
       [
-        tentacleId,
+        agentId,
         {
-          terminalId: tentacleId,
-          tentacleId,
-          tentacleName: tentacleId,
+          terminalId: agentId,
+          agentId,
+          agentName: agentId,
           createdAt: new Date().toISOString(),
           workspaceMode: "shared",
           initialPrompt: "Investigate and report back.",
@@ -722,7 +722,7 @@ describe("createSessionRuntime", () => {
       websocketServer: websocketServer as unknown as import("ws").WebSocketServer,
       terminals,
       sessions,
-      getTentacleWorkspaceCwd: () => process.cwd(),
+      getAgentWorkspaceCwd: () => process.cwd(),
       isDebugPtyLogsEnabled: false,
       ptyLogDir: process.cwd(),
       transcriptDirectoryPath,
@@ -730,8 +730,8 @@ describe("createSessionRuntime", () => {
       scrollbackMaxBytes: 1024,
     });
 
-    expect(runtime.startSession(tentacleId)).toBe(true);
-    expect(sessions.has(tentacleId)).toBe(true);
+    expect(runtime.startSession(agentId)).toBe(true);
+    expect(sessions.has(agentId)).toBe(true);
     expect(pty.write).toHaveBeenNthCalledWith(1, "claude\r");
 
     vi.advanceTimersByTime(4_000);
@@ -744,7 +744,7 @@ describe("createSessionRuntime", () => {
     expect(pty.write).toHaveBeenNthCalledWith(3, "\r");
 
     vi.advanceTimersByTime(10_000);
-    expect(sessions.has(tentacleId)).toBe(true);
+    expect(sessions.has(agentId)).toBe(true);
 
     runtime.close();
   });
@@ -752,14 +752,14 @@ describe("createSessionRuntime", () => {
   it("pastes an initial input draft without submitting it", () => {
     vi.useFakeTimers();
 
-    const tentacleId = "tentacle-1";
+    const agentId = "agent-1";
     const terminals = new Map<string, PersistedTerminal>([
       [
-        tentacleId,
+        agentId,
         {
-          terminalId: tentacleId,
-          tentacleId,
-          tentacleName: tentacleId,
+          terminalId: agentId,
+          agentId,
+          agentName: agentId,
           createdAt: new Date().toISOString(),
           workspaceMode: "shared",
           initialInputDraft: "You are working on docs.",
@@ -776,7 +776,7 @@ describe("createSessionRuntime", () => {
       websocketServer: websocketServer as unknown as import("ws").WebSocketServer,
       terminals,
       sessions,
-      getTentacleWorkspaceCwd: () => process.cwd(),
+      getAgentWorkspaceCwd: () => process.cwd(),
       isDebugPtyLogsEnabled: false,
       ptyLogDir: process.cwd(),
       transcriptDirectoryPath,
@@ -787,7 +787,7 @@ describe("createSessionRuntime", () => {
     const socket = new FakeWebSocket();
     websocketServer.nextSocket = socket;
     expect(
-      runtime.handleUpgrade(createUpgradeRequest(tentacleId), {} as Duplex, Buffer.alloc(0)),
+      runtime.handleUpgrade(createUpgradeRequest(agentId), {} as Duplex, Buffer.alloc(0)),
     ).toBe(true);
 
     expect(pty.write).toHaveBeenNthCalledWith(1, "claude\r");
@@ -802,14 +802,14 @@ describe("createSessionRuntime", () => {
   });
 
   it("reports runtime state changes through the state-change callback", () => {
-    const tentacleId = "tentacle-1";
+    const agentId = "agent-1";
     const terminals = new Map<string, PersistedTerminal>([
       [
-        tentacleId,
+        agentId,
         {
-          terminalId: tentacleId,
-          tentacleId,
-          tentacleName: tentacleId,
+          terminalId: agentId,
+          agentId,
+          agentName: agentId,
           createdAt: new Date().toISOString(),
           workspaceMode: "shared",
         },
@@ -826,7 +826,7 @@ describe("createSessionRuntime", () => {
       websocketServer: websocketServer as unknown as import("ws").WebSocketServer,
       terminals,
       sessions,
-      getTentacleWorkspaceCwd: () => process.cwd(),
+      getAgentWorkspaceCwd: () => process.cwd(),
       isDebugPtyLogsEnabled: false,
       ptyLogDir: process.cwd(),
       transcriptDirectoryPath,
@@ -838,25 +838,25 @@ describe("createSessionRuntime", () => {
     const socket = new FakeWebSocket();
     websocketServer.nextSocket = socket;
     expect(
-      runtime.handleUpgrade(createUpgradeRequest(tentacleId), {} as Duplex, Buffer.alloc(0)),
+      runtime.handleUpgrade(createUpgradeRequest(agentId), {} as Duplex, Buffer.alloc(0)),
     ).toBe(true);
 
     socket.emit("message", JSON.stringify({ type: "input", data: "echo hi\r" }));
 
-    expect(onStateChange).toHaveBeenCalledWith(tentacleId, "processing", undefined);
+    expect(onStateChange).toHaveBeenCalledWith(agentId, "processing", undefined);
 
     runtime.close();
   });
 
   it("reports session lifecycle start and exit through callbacks", () => {
-    const tentacleId = "tentacle-1";
+    const agentId = "agent-1";
     const terminals = new Map<string, PersistedTerminal>([
       [
-        tentacleId,
+        agentId,
         {
-          terminalId: tentacleId,
-          tentacleId,
-          tentacleName: tentacleId,
+          terminalId: agentId,
+          agentId,
+          agentName: agentId,
           createdAt: new Date().toISOString(),
           workspaceMode: "shared",
         },
@@ -875,7 +875,7 @@ describe("createSessionRuntime", () => {
       websocketServer: websocketServer as unknown as import("ws").WebSocketServer,
       terminals,
       sessions,
-      getTentacleWorkspaceCwd: () => process.cwd(),
+      getAgentWorkspaceCwd: () => process.cwd(),
       isDebugPtyLogsEnabled: false,
       ptyLogDir: process.cwd(),
       transcriptDirectoryPath,
@@ -888,11 +888,11 @@ describe("createSessionRuntime", () => {
     const socket = new FakeWebSocket();
     websocketServer.nextSocket = socket;
     expect(
-      runtime.handleUpgrade(createUpgradeRequest(tentacleId), {} as Duplex, Buffer.alloc(0)),
+      runtime.handleUpgrade(createUpgradeRequest(agentId), {} as Duplex, Buffer.alloc(0)),
     ).toBe(true);
 
     expect(onSessionStart).toHaveBeenCalledWith(
-      tentacleId,
+      agentId,
       expect.objectContaining({
         processId: 3210,
         startedAt: expect.any(String),
@@ -902,7 +902,7 @@ describe("createSessionRuntime", () => {
     pty.emit("exit", { exitCode: 7, signal: 0 });
 
     expect(onSessionEnd).toHaveBeenCalledWith(
-      tentacleId,
+      agentId,
       expect.objectContaining({
         reason: "pty_exit",
         exitCode: 7,
@@ -910,7 +910,7 @@ describe("createSessionRuntime", () => {
         endedAt: expect.any(String),
       }),
     );
-    expect(sessions.has(tentacleId)).toBe(false);
+    expect(sessions.has(agentId)).toBe(false);
 
     runtime.close();
   });

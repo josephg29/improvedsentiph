@@ -37,16 +37,8 @@ export const DeleteAllTerminalsDialog = ({
 
   const inactiveTerminals = useMemo(() => columns.filter((t) => !t.hasUserPrompt), [columns]);
 
-  const inactiveSessionIds = useMemo(
-    () =>
-      nodes.flatMap((node) =>
-        node.type === "inactive-session" && node.sessionId ? [node.sessionId] : [],
-      ),
-    [nodes],
-  );
-
   const activeTargets = inactiveOnly ? inactiveTerminals : columns;
-  const totalTargetCount = activeTargets.length + inactiveSessionIds.length;
+  const totalTargetCount = activeTargets.length;
 
   const handleConfirm = useCallback(async () => {
     if (totalTargetCount === 0) return;
@@ -65,7 +57,7 @@ export const DeleteAllTerminalsDialog = ({
         });
         if (!response.ok) {
           failures.push(
-            `${terminal.tentacleName || terminal.label || terminal.terminalId}: ${await readDeleteFailureMessage(
+            `${terminal.agentName || terminal.label || terminal.terminalId}: ${await readDeleteFailureMessage(
               response,
               `Delete failed (${response.status})`,
             )}`,
@@ -73,32 +65,9 @@ export const DeleteAllTerminalsDialog = ({
         }
       } catch (error) {
         failures.push(
-          `${terminal.tentacleName || terminal.label || terminal.terminalId}: ${
+          `${terminal.agentName || terminal.label || terminal.terminalId}: ${
             error instanceof Error ? error.message : "Delete failed."
           }`,
-        );
-      }
-      done += 1;
-      setProgress({ done, total: totalTargetCount });
-    }
-
-    for (const sessionId of inactiveSessionIds) {
-      try {
-        const response = await fetch(`/api/conversations/${encodeURIComponent(sessionId)}`, {
-          method: "DELETE",
-          headers: { Accept: "application/json" },
-        });
-        if (!response.ok) {
-          failures.push(
-            `Conversation ${sessionId}: ${await readDeleteFailureMessage(
-              response,
-              `Delete failed (${response.status})`,
-            )}`,
-          );
-        }
-      } catch (error) {
-        failures.push(
-          `Conversation ${sessionId}: ${error instanceof Error ? error.message : "Delete failed."}`,
         );
       }
       done += 1;
@@ -109,7 +78,7 @@ export const DeleteAllTerminalsDialog = ({
     setProgress(null);
     setFailureMessages(failures);
     onDeleted({ hadFailures: failures.length > 0 });
-  }, [activeTargets, inactiveSessionIds, totalTargetCount, onDeleted]);
+  }, [activeTargets, totalTargetCount, onDeleted]);
 
   return (
     <section
@@ -144,7 +113,7 @@ export const DeleteAllTerminalsDialog = ({
           <strong>
             {totalTargetCount} {totalTargetCount === 1 ? "session" : "sessions"}
           </strong>
-          {inactiveOnly ? " (inactive terminals + past sessions)" : " (all)"}.
+          {inactiveOnly ? " (inactive terminals)" : " (all)"}.
         </p>
         <p className="delete-confirm-message">
           Worktree-backed terminals also remove their local worktree directories and branches.
@@ -176,10 +145,6 @@ export const DeleteAllTerminalsDialog = ({
           <div>
             <dt>Inactive</dt>
             <dd>{inactiveTerminals.length}</dd>
-          </div>
-          <div>
-            <dt>Past sessions</dt>
-            <dd>{inactiveSessionIds.length}</dd>
           </div>
           <div>
             <dt>Total</dt>

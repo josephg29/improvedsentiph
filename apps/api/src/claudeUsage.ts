@@ -3,7 +3,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
-import { type ClaudeUsageSnapshot, asNumber, asRecord, asString } from "@octogent/core";
+import { type ClaudeUsageSnapshot, asNumber, asRecord, asString } from "@sentiph/core";
 import { logVerbose } from "./logging";
 import { toResetIso } from "./usageUtils";
 

@@ -1,4 +1,4 @@
-import { asRecord } from "@octogent/core";
+import { asRecord } from "@sentiph/core";
 
 import { MAX_SIDEBAR_WIDTH, MIN_SIDEBAR_WIDTH, PRIMARY_NAV_MAX } from "./constants";
 import { isTerminalCompletionSoundId } from "./notificationSounds";
@@ -96,8 +96,8 @@ export const normalizeFrontendUiStateSnapshot = (
     );
   }
 
-  if (Array.isArray(record.canvasOpenTentacleIds)) {
-    nextState.canvasOpenTentacleIds = record.canvasOpenTentacleIds.filter(
+  if (Array.isArray(record.canvasOpenAgentIds)) {
+    nextState.canvasOpenAgentIds = record.canvasOpenAgentIds.filter(
       (id): id is string => typeof id === "string",
     );
   }

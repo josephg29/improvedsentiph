@@ -1,12 +1,5 @@
-import type { WorkspaceSetupStepId } from "@octogent/core";
+import type { WorkspaceSetupStepId } from "@sentiph/core";
 
-import {
-  deleteUserPrompt,
-  listAllPrompts,
-  readPromptFromDirs,
-  resolvePrompt,
-  writeUserPrompt,
-} from "../prompts";
 import { markSetupStepVerified } from "../setupState";
 import {
   ensureWorkspaceGitignore,
@@ -30,8 +23,7 @@ const isWorkspaceSetupStepId = (value: string): value is WorkspaceSetupStepId =>
   value === "ensure-gitignore" ||
   value === "check-claude" ||
   value === "check-git" ||
-  value === "check-curl" ||
-  value === "create-tentacles";
+  value === "check-curl";
 
 export const handleWorkspaceSetupRoute: ApiRouteHandler = async (
   { request, response, requestUrl, corsOrigin },
@@ -139,13 +131,13 @@ export const handleHookRoute: ApiRouteHandler = async (
 
   const hookName = match[1] ?? "";
   // HTTP hooks pass the session ID via header; command hooks via query param.
-  const octogentSessionId =
-    (typeof request.headers["x-octogent-session"] === "string"
-      ? request.headers["x-octogent-session"]
+  const sentiphSessionId =
+    (typeof request.headers["x-sentiph-session"] === "string"
+      ? request.headers["x-sentiph-session"]
       : undefined) ??
-    requestUrl.searchParams.get("octogent_session") ??
+    requestUrl.searchParams.get("sentiph_session") ??
     undefined;
-  const result = runtime.handleHook(hookName, body.payload, octogentSessionId);
+  const result = runtime.handleHook(hookName, body.payload, sentiphSessionId);
 
   if (hookName === "session-start" || hookName === "stop") {
     invalidateClaudeUsageCache();
@@ -153,114 +145,6 @@ export const handleHookRoute: ApiRouteHandler = async (
   }
 
   writeJson(response, 200, result, corsOrigin);
-  return true;
-};
-
-const PROMPT_ITEM_PATH_PATTERN = /^\/api\/prompts\/([^/]+)$/;
-
-export const handlePromptsCollectionRoute: ApiRouteHandler = async (
-  { request, response, requestUrl, corsOrigin },
-  { promptsDir, userPromptsDir },
-) => {
-  if (requestUrl.pathname !== "/api/prompts") {
-    return false;
-  }
-
-  if (request.method === "GET") {
-    const prompts = await listAllPrompts(promptsDir, userPromptsDir);
-    writeJson(response, 200, { prompts }, corsOrigin);
-    return true;
-  }
-
-  if (request.method === "POST") {
-    const bodyResult = await readJsonBodyOrWriteError(request, response, corsOrigin);
-    if (!bodyResult.ok) return true;
-
-    const body = bodyResult.payload as Record<string, unknown> | null;
-    const name = body && typeof body.name === "string" ? body.name.trim() : "";
-    const content = body && typeof body.content === "string" ? body.content : "";
-
-    if (name.length === 0) {
-      writeJson(response, 400, { error: "Prompt name is required." }, corsOrigin);
-      return true;
-    }
-
-    const ok = await writeUserPrompt(userPromptsDir, name, content);
-    if (!ok) {
-      writeJson(response, 400, { error: "Invalid prompt name." }, corsOrigin);
-      return true;
-    }
-
-    writeJson(response, 201, { name, source: "user" }, corsOrigin);
-    return true;
-  }
-
-  writeMethodNotAllowed(response, corsOrigin);
-  return true;
-};
-
-export const handlePromptItemRoute: ApiRouteHandler = async (
-  { request, response, requestUrl, corsOrigin },
-  { promptsDir, userPromptsDir },
-) => {
-  const match = requestUrl.pathname.match(PROMPT_ITEM_PATH_PATTERN);
-  if (!match) return false;
-
-  const name = decodeURIComponent(match[1] as string);
-
-  if (request.method === "GET") {
-    // Resolve variables from query params (e.g. ?tentacleId=sandbox).
-    const variables: Record<string, string> = {};
-    for (const [key, value] of requestUrl.searchParams.entries()) {
-      variables[key] = value;
-    }
-
-    const hasVariables = Object.keys(variables).length > 0;
-    if (hasVariables) {
-      const resolved = await resolvePrompt(promptsDir, name, variables);
-      if (resolved === undefined) {
-        writeJson(response, 404, { error: "Prompt template not found" }, corsOrigin);
-        return true;
-      }
-      writeJson(response, 200, { name, prompt: resolved }, corsOrigin);
-    } else {
-      const result = await readPromptFromDirs(promptsDir, userPromptsDir, name);
-      if (result === undefined) {
-        writeJson(response, 404, { error: "Prompt template not found" }, corsOrigin);
-        return true;
-      }
-      writeJson(response, 200, result, corsOrigin);
-    }
-    return true;
-  }
-
-  if (request.method === "PUT") {
-    const bodyResult = await readJsonBodyOrWriteError(request, response, corsOrigin);
-    if (!bodyResult.ok) return true;
-
-    const body = bodyResult.payload as Record<string, unknown> | null;
-    const content = body && typeof body.content === "string" ? body.content : "";
-
-    const ok = await writeUserPrompt(userPromptsDir, name, content);
-    if (!ok) {
-      writeJson(response, 400, { error: "Invalid prompt name." }, corsOrigin);
-      return true;
-    }
-    writeJson(response, 200, { name, source: "user", content }, corsOrigin);
-    return true;
-  }
-
-  if (request.method === "DELETE") {
-    const ok = await deleteUserPrompt(userPromptsDir, name);
-    if (!ok) {
-      writeJson(response, 404, { error: "Prompt not found or cannot be deleted." }, corsOrigin);
-      return true;
-    }
-    writeNoContent(response, 204, corsOrigin);
-    return true;
-  }
-
-  writeMethodNotAllowed(response, corsOrigin);
   return true;
 };
 

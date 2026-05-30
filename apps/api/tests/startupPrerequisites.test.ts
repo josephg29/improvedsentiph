@@ -29,7 +29,7 @@ describe("startup prerequisites", () => {
     expect(report.errors).toEqual([]);
     expect(report.warnings.map((issue) => issue.command)).toEqual(["claude", "git", "gh", "curl"]);
     expect(formatStartupPrerequisiteReport(report)).toEqual([
-      "Octogent startup preflight:",
+      "Sentiph startup preflight:",
       "  Warning: `claude` is not installed.",
       "    Claude-backed terminals are unavailable. Install Claude Code and run `claude login` if you want the default Claude provider.",
       "  Warning: `git` is not installed.",

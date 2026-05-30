@@ -4,7 +4,7 @@ export type WorkspaceSetupStepId =
   | "check-claude"
   | "check-git"
   | "check-curl"
-  | "create-tentacles";
+  | "create-agents";
 
 export type WorkspaceSetupStep = {
   id: WorkspaceSetupStepId;
@@ -21,7 +21,7 @@ export type WorkspaceSetupStep = {
 export type WorkspaceSetupSnapshot = {
   isFirstRun: boolean;
   shouldShowSetupCard: boolean;
-  hasAnyTentacles: boolean;
-  tentacleCount: number;
+  hasAnyAgents: boolean;
+  agentCount: number;
   steps: WorkspaceSetupStep[];
 };

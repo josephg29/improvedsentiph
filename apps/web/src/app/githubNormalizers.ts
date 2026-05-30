@@ -1,4 +1,4 @@
-import { asNumber, asRecord, asString } from "@octogent/core";
+import { asNumber, asRecord, asString } from "@sentiph/core";
 
 import type { GitHubCommitPoint, GitHubRecentCommit, GitHubRepoSummarySnapshot } from "./types";
 

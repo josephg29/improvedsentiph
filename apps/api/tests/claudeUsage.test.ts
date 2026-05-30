@@ -499,7 +499,7 @@ describe("readClaudeUsageSnapshot", () => {
   });
 
   it("serves a persisted snapshot immediately and refreshes in background", async () => {
-    const projectStateDir = mkdtempSync(join(tmpdir(), "octogent-claude-usage-"));
+    const projectStateDir = mkdtempSync(join(tmpdir(), "sentiph-claude-usage-"));
     temporaryDirectories.push(projectStateDir);
 
     await readClaudeUsageSnapshot({

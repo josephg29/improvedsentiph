@@ -11,9 +11,9 @@ import {
 import { homedir } from "node:os";
 import { basename, join } from "node:path";
 
-export const GLOBAL_OCTOGENT_DIR = join(homedir(), ".octogent");
-export const PROJECTS_FILE = join(GLOBAL_OCTOGENT_DIR, "projects.json");
-export const PROJECT_CONFIG_RELATIVE_PATH = join(".octogent", "project.json");
+export const GLOBAL_SENTIPH_DIR = join(homedir(), ".sentiph");
+export const PROJECTS_FILE = join(GLOBAL_SENTIPH_DIR, "projects.json");
+export const PROJECT_CONFIG_RELATIVE_PATH = join(".sentiph", "project.json");
 
 type ProjectConfigDocument = {
   version: 1;
@@ -121,14 +121,14 @@ const readJsonFile = (filePath: string): unknown | null => {
   }
 };
 
-export const ensureGlobalOctogentDir = () => {
-  if (!existsSync(GLOBAL_OCTOGENT_DIR)) {
-    mkdirSync(GLOBAL_OCTOGENT_DIR, { recursive: true });
+export const ensureGlobalSentiphDir = () => {
+  if (!existsSync(GLOBAL_SENTIPH_DIR)) {
+    mkdirSync(GLOBAL_SENTIPH_DIR, { recursive: true });
   }
 };
 
 export const loadProjectsRegistry = (): ProjectsRegistry => {
-  ensureGlobalOctogentDir();
+  ensureGlobalSentiphDir();
 
   if (!existsSync(PROJECTS_FILE)) {
     return { projects: [] };
@@ -147,7 +147,7 @@ export const loadProjectsRegistry = (): ProjectsRegistry => {
 };
 
 export const saveProjectsRegistry = (registry: ProjectsRegistry) => {
-  ensureGlobalOctogentDir();
+  ensureGlobalSentiphDir();
   writeFileSync(PROJECTS_FILE, `${JSON.stringify(registry, null, 2)}\n`, "utf8");
 };
 
@@ -195,7 +195,7 @@ export const ensureProjectConfig = (
     preferredName?.trim() ||
     inferLegacyProjectName(workspaceCwd) ||
     basename(workspaceCwd) ||
-    "octogent-project";
+    "sentiph-project";
   const config: ProjectConfigDocument = {
     version: 1,
     projectId: preferredProjectId?.trim() || randomUUID(),
@@ -204,7 +204,7 @@ export const ensureProjectConfig = (
   };
 
   const configPath = resolveProjectConfigPath(workspaceCwd);
-  mkdirSync(join(workspaceCwd, ".octogent"), { recursive: true });
+  mkdirSync(join(workspaceCwd, ".sentiph"), { recursive: true });
   writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, "utf8");
   return config;
 };
@@ -243,7 +243,7 @@ export const registerProject = (
 };
 
 export const resolveGlobalProjectDir = (projectId: string) =>
-  join(GLOBAL_OCTOGENT_DIR, "projects", projectId);
+  join(GLOBAL_SENTIPH_DIR, "projects", projectId);
 
 export const resolveEphemeralProjectStateDir = (workspaceCwd: string) =>
   resolveGlobalProjectDir(deriveProjectIdFromWorkspace(workspaceCwd));
@@ -260,15 +260,15 @@ export const ensureProjectScaffold = (
   preferredName?: string,
   preferredProjectId?: string,
 ) => {
-  const octogentDir = join(workspaceCwd, ".octogent");
-  for (const subdirectory of ["tentacles", "worktrees"]) {
-    mkdirSync(join(octogentDir, subdirectory), { recursive: true });
+  const sentiphDir = join(workspaceCwd, ".sentiph");
+  for (const subdirectory of ["agents", "worktrees"]) {
+    mkdirSync(join(sentiphDir, subdirectory), { recursive: true });
   }
 
   return ensureProjectConfig(workspaceCwd, preferredName, preferredProjectId);
 };
 
-export const hasOctogentGitignoreEntry = (workspaceCwd: string) => {
+export const hasSentiphGitignoreEntry = (workspaceCwd: string) => {
   const gitignorePath = join(workspaceCwd, ".gitignore");
   if (!existsSync(gitignorePath)) {
     return false;
@@ -278,12 +278,12 @@ export const hasOctogentGitignoreEntry = (workspaceCwd: string) => {
   return content
     .split("\n")
     .map((line) => line.trim())
-    .includes(".octogent");
+    .includes(".sentiph");
 };
 
-export const ensureOctogentGitignoreEntry = (workspaceCwd: string) => {
+export const ensureSentiphGitignoreEntry = (workspaceCwd: string) => {
   const gitignorePath = join(workspaceCwd, ".gitignore");
-  const entry = ".octogent";
+  const entry = ".sentiph";
 
   if (existsSync(gitignorePath)) {
     const content = readFileSync(gitignorePath, "utf-8");
@@ -305,7 +305,7 @@ export const ensureOctogentGitignoreEntry = (workspaceCwd: string) => {
 };
 
 export const migrateStateToGlobal = (workspaceCwd: string, projectStateDir: string) => {
-  const fallbackProjectDir = join(workspaceCwd, ".octogent");
+  const fallbackProjectDir = join(workspaceCwd, ".sentiph");
   if (projectStateDir === fallbackProjectDir) {
     return;
   }
@@ -314,7 +314,7 @@ export const migrateStateToGlobal = (workspaceCwd: string, projectStateDir: stri
   const legacyProjectName = inferLegacyProjectName(workspaceCwd);
   const legacyGlobalProjectDir =
     legacyProjectName && currentConfig
-      ? join(GLOBAL_OCTOGENT_DIR, "projects", legacyProjectName)
+      ? join(GLOBAL_SENTIPH_DIR, "projects", legacyProjectName)
       : null;
   const oldStateDir = join(fallbackProjectDir, "state");
   const newStateDir = join(projectStateDir, "state");
@@ -322,11 +322,7 @@ export const migrateStateToGlobal = (workspaceCwd: string, projectStateDir: stri
   mkdirSync(newStateDir, { recursive: true });
 
   const stateFiles = [
-    "tentacles.json",
-    "deck.json",
-    "monitor-config.json",
-    "monitor-cache.json",
-    "code-intel-events.jsonl",
+    "agents.json",
     "claude-usage-snapshot.json",
     "runtime.json",
   ];

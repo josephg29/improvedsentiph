@@ -204,24 +204,24 @@ export const parseUiStatePatch = (
     patch.canvasOpenTerminalIds = canvasOpenTerminalIds;
   }
 
-  if (record.canvasOpenTentacleIds !== undefined) {
-    if (!Array.isArray(record.canvasOpenTentacleIds)) {
+  if (record.canvasOpenAgentIds !== undefined) {
+    if (!Array.isArray(record.canvasOpenAgentIds)) {
       return {
         patch: null,
-        error: "canvasOpenTentacleIds must be an array of strings.",
+        error: "canvasOpenAgentIds must be an array of strings.",
       };
     }
 
-    const canvasOpenTentacleIds = record.canvasOpenTentacleIds.filter(
+    const canvasOpenAgentIds = record.canvasOpenAgentIds.filter(
       (id): id is string => typeof id === "string",
     );
-    if (canvasOpenTentacleIds.length !== record.canvasOpenTentacleIds.length) {
+    if (canvasOpenAgentIds.length !== record.canvasOpenAgentIds.length) {
       return {
         patch: null,
-        error: "canvasOpenTentacleIds must be an array of strings.",
+        error: "canvasOpenAgentIds must be an array of strings.",
       };
     }
-    patch.canvasOpenTentacleIds = canvasOpenTentacleIds;
+    patch.canvasOpenAgentIds = canvasOpenAgentIds;
   }
 
   if (record.canvasTerminalsPanelWidth !== undefined) {

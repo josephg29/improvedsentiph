@@ -18,8 +18,8 @@
 - Do not make the web app depend on server-only implementation details. Expose stable API/runtime contracts instead.
 
 ## State And Persistence
-- Runtime state under `.octogent/` is a contract surface. Be careful with compatibility when changing file formats or paths.
-- Transcript, tentacle registry, monitor config, and worktree data should remain predictable and inspectable on disk.
+- Runtime state under `.sentiph/` is a contract surface. Be careful with compatibility when changing file formats or paths.
+- Transcript, agent registry, monitor config, and worktree data should remain predictable and inspectable on disk.
 - Prefer explicit migration or normalization paths over silent shape drift.
 
 ## PTY, Process, And Git Safety

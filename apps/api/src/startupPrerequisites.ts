@@ -68,7 +68,7 @@ export const collectStartupPrerequisiteReport = (
       severity: "error",
       summary: "Neither `claude` nor `codex` is installed.",
       guidance:
-        "Install at least one agent CLI before starting Octogent. Claude-backed terminals use `claude`; Codex-backed terminals use `codex`.",
+        "Install at least one agent CLI before starting Sentiph. Claude-backed terminals use `claude`; Codex-backed terminals use `codex`.",
     });
   } else {
     if (!availability.claude) {
@@ -130,7 +130,7 @@ export const formatStartupPrerequisiteReport = (report: StartupPrerequisiteRepor
     return [];
   }
 
-  const lines = ["Octogent startup preflight:"];
+  const lines = ["Sentiph startup preflight:"];
 
   for (const issue of report.errors) {
     lines.push(`  Error: ${issue.summary}`);

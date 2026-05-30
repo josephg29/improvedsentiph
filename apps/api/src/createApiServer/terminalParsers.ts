@@ -1,5 +1,5 @@
 import {
-  type TentacleWorkspaceMode,
+  type AgentWorkspaceMode,
   type TerminalAgentProvider,
   type TerminalNameOrigin,
   isTerminalAgentProvider,
@@ -61,14 +61,14 @@ export const parseTerminalName = (payload: unknown) => {
 export const parseTerminalWorkspaceMode = (payload: unknown) => {
   if (payload === null || payload === undefined) {
     return {
-      workspaceMode: "shared" as TentacleWorkspaceMode,
+      workspaceMode: "shared" as AgentWorkspaceMode,
       error: null as string | null,
     };
   }
 
   if (typeof payload !== "object") {
     return {
-      workspaceMode: "shared" as TentacleWorkspaceMode,
+      workspaceMode: "shared" as AgentWorkspaceMode,
       error: "Expected a JSON object body.",
     };
   }
@@ -76,20 +76,20 @@ export const parseTerminalWorkspaceMode = (payload: unknown) => {
   const rawWorkspaceMode = (payload as Record<string, unknown>).workspaceMode;
   if (rawWorkspaceMode === undefined) {
     return {
-      workspaceMode: "shared" as TentacleWorkspaceMode,
+      workspaceMode: "shared" as AgentWorkspaceMode,
       error: null as string | null,
     };
   }
 
   if (rawWorkspaceMode !== "shared" && rawWorkspaceMode !== "worktree") {
     return {
-      workspaceMode: "shared" as TentacleWorkspaceMode,
+      workspaceMode: "shared" as AgentWorkspaceMode,
       error: "Terminal workspace mode must be either 'shared' or 'worktree'.",
     };
   }
 
   return {
-    workspaceMode: rawWorkspaceMode as TentacleWorkspaceMode,
+    workspaceMode: rawWorkspaceMode as AgentWorkspaceMode,
     error: null as string | null,
   };
 };

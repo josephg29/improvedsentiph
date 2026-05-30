@@ -1,33 +1,26 @@
 # Filesystem Layout
 
-Octogent splits files by ownership. Agent-facing project context stays in the workspace. Runtime-owned state stays in the per-project global state directory.
+`sentiph` splits files by ownership. A small project-local scaffold stays in the workspace. Runtime-owned state stays in the per-project global state directory.
 
 ## Project-local files
 
-`.octogent/` is created in the workspace.
+`.sentiph/` is created in the workspace.
 
 Main paths:
 
-- `.octogent/project.json`
-- `.octogent/tentacles/`
-- `.octogent/worktrees/`
+- `.sentiph/project.json`
+- `.sentiph/worktrees/`
 
-`project.json` holds the stable project ID used to find global state. The tentacles folder is intended for agent-readable markdown. Worktrees are generated execution checkouts and should not be treated as context storage.
+`project.json` holds the stable project ID used to find global state. Worktrees are generated execution checkouts and should not be treated as durable storage.
 
-Tentacle example:
+Worktree example:
 
 ```text
-.octogent/
-  tentacles/
-    api-backend/
-      CONTEXT.md
-      todo.md
-      routes.md
+.sentiph/
+  project.json
+  worktrees/
+    api-worker/
 ```
-
-`CONTEXT.md` may end with a managed `Suggested Skills` block when the operator or planner attaches Claude Code skills to that tentacle.
-
-Deck also writes UI metadata for tentacles, but not into these markdown files. Color, status, appearance, paths, and tags are stored in global deck state.
 
 Project-local Claude Code skills, when present, live under:
 
@@ -43,34 +36,30 @@ Project-local Claude Code skills, when present, live under:
 Per-project runtime state is stored under:
 
 ```text
-~/.octogent/projects/<project-id>/state/
+~/.sentiph/projects/<project-id>/state/
 ```
 
 Notable files:
 
-- `tentacles.json`
-- `deck.json`
+- the agent registry file
 - `transcripts/<sessionId>.jsonl`
-- `monitor-config.json`
-- `monitor-cache.json`
-- `code-intel.jsonl`
+- `runs/<runId>.json` and `runs/index.json` (pipeline runs)
 
-`tentacles.json` is the terminal registry despite the historical name. It stores terminal records, lifecycle state, UI state, parent-child links, workspace mode, worktree IDs, and display names.
+Pipeline runs are persisted one file per run under `state/runs/`, with an
+`index.json` listing the run ids. Each file is a versioned document holding the
+run's status, append-only worker outcome log, and result. Writes are debounced.
+On API restart, a run left in a non-terminal status is reconciled to `failed`
+with reason `api_restart` — v1 does not resume in-flight runs. Each run also gets
+its own isolated worktree under `.sentiph/worktrees/run-<runId>` on branch
+`sentiph/run-<runId>`; a passed run's branch is left for you to merge, and a
+cancelled/failed run's worktree and branch are removed.
 
-`deck.json` stores Deck presentation metadata that is not part of the agent-facing tentacle files.
+The agent registry stores agent records, lifecycle state, UI state such as node color, parent-child links, workspace mode, worktree IDs, and display names.
 
-`transcripts/*.jsonl` stores conversation transcript events separately from PTY scrollback. Scrollback is in memory and bounded; transcripts are persisted.
-
-## Prompt storage
-
-- core prompts are synced from `prompts/`
-- synced copies live in `.octogent/prompts/core/`
-- user prompts live in `.octogent/prompts/`
+`transcripts/*.jsonl` stores transcript events separately from PTY scrollback. Scrollback is in memory and bounded; transcripts are persisted.
 
 ## Practical rule
 
-If something is agent-facing context, keep it in the tentacle folder.
-
 If something is runtime-owned state, expect it under the global project state directory.
 
-If something is an isolated execution checkout, expect it under `.octogent/worktrees/` and treat its branch lifecycle as part of the terminal that created it.
+If something is an isolated execution checkout, expect it under `.sentiph/worktrees/` and treat its branch lifecycle as part of the agent that created it.

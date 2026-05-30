@@ -15,7 +15,7 @@ type CanvasTerminalColumnProps = {
   onClose: () => void;
   onFocus?: () => void;
   panelRef?: Ref<HTMLElement> | undefined;
-  onTerminalRenamed?: ((terminalId: string, tentacleName: string) => void) | undefined;
+  onTerminalRenamed?: ((terminalId: string, agentName: string) => void) | undefined;
   onTerminalActivity?: ((terminalId: string) => void) | undefined;
 };
 
@@ -34,8 +34,8 @@ export const CanvasTerminalColumn = ({
   const [agentState, setAgentState] = useState<AgentRuntimeState>("idle");
 
   const terminal = terminals.find((t) => t.terminalId === node.sessionId);
-  const rawName = terminal?.tentacleName ?? node.tentacleId;
-  const tentacleName = rawName.length > 24 ? `${rawName.slice(0, 24)}...` : rawName;
+  const rawName = terminal?.agentName ?? node.agentId;
+  const agentName = rawName.length > 24 ? `${rawName.slice(0, 24)}...` : rawName;
   const workspaceMode = terminal?.workspaceMode ?? "shared";
 
   const handleFocus = useCallback(() => {
@@ -55,15 +55,15 @@ export const CanvasTerminalColumn = ({
       <div className="canvas-terminal-column-header">
         <div className="canvas-terminal-column-heading">
           <h2>
-            <span className="canvas-terminal-column-name">{tentacleName}</span>
+            <span className="canvas-terminal-column-name">{agentName}</span>
             {workspaceMode === "worktree" && (
               <span className="canvas-terminal-column-badge">WT</span>
             )}
           </h2>
         </div>
         <div className="canvas-terminal-column-actions">
-          <span className="canvas-terminal-column-tentacle-tag" style={{ background: node.color }}>
-            {node.tentacleId}
+          <span className="canvas-terminal-column-agent-tag" style={{ background: node.color }}>
+            {node.agentId}
           </span>
           <AgentStateBadge state={agentState} />
           <button

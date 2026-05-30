@@ -18,7 +18,7 @@ import { fileURLToPath } from "node:url";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = dirname(scriptDir);
-const tempRoot = mkdtempSync(join(tmpdir(), "octogent-public-install-"));
+const tempRoot = mkdtempSync(join(tmpdir(), "sentiph-public-install-"));
 const packDir = join(tempRoot, "pack");
 const installDir = join(tempRoot, "install");
 const workspaceDir = join(tempRoot, "workspace");
@@ -124,20 +124,20 @@ const main = async () => {
       env: npmEnv,
     });
 
-    console.log("Launching packaged Octogent in a fresh workspace...");
-    const octogentBin =
+    console.log("Launching packaged Sentiph in a fresh workspace...");
+    const sentiphBin =
       process.platform === "win32"
-        ? join(installDir, "node_modules", ".bin", "octogent.cmd")
-        : join(installDir, "node_modules", ".bin", "octogent");
+        ? join(installDir, "node_modules", ".bin", "sentiph.cmd")
+        : join(installDir, "node_modules", ".bin", "sentiph");
 
     let stdout = "";
     let stderr = "";
 
-    serverProcess = spawn(octogentBin, [], {
+    serverProcess = spawn(sentiphBin, [], {
       cwd: workspaceDir,
       env: {
         ...runtimeEnv,
-        OCTOGENT_NO_OPEN: "1",
+        SENTIPH_NO_OPEN: "1",
         PATH: `${binDir}${delimiter}${runtimeEnv.PATH ?? ""}`,
       },
       stdio: ["ignore", "pipe", "pipe"],
@@ -150,14 +150,14 @@ const main = async () => {
       stderr += chunk.toString();
     });
 
-    const runtimeMetadataPath = join(homeDir, ".octogent", "projects");
+    const runtimeMetadataPath = join(homeDir, ".sentiph", "projects");
 
     for (let attempt = 0; attempt < 80; attempt += 1) {
       if (serverProcess.exitCode !== null) {
         break;
       }
 
-      const projectConfigPath = join(workspaceDir, ".octogent", "project.json");
+      const projectConfigPath = join(workspaceDir, ".sentiph", "project.json");
       if (existsSync(projectConfigPath)) {
         const projectConfig = JSON.parse(readFileSync(projectConfigPath, "utf8"));
         const candidateRuntimePath = join(
@@ -173,8 +173,8 @@ const main = async () => {
             const response = await fetch(runtimeMetadata.apiBaseUrl);
             if (response.ok) {
               const html = await response.text();
-              if (!html.includes("<title>Octogent</title>")) {
-                throw new Error("Packaged UI responded, but the returned HTML was not Octogent.");
+              if (!html.includes("<title>Sentiph</title>")) {
+                throw new Error("Packaged UI responded, but the returned HTML was not Sentiph.");
               }
               break;
             }
@@ -199,9 +199,9 @@ const main = async () => {
       );
     }
 
-    const projectConfigPath = join(workspaceDir, ".octogent", "project.json");
+    const projectConfigPath = join(workspaceDir, ".sentiph", "project.json");
     const gitignorePath = join(workspaceDir, ".gitignore");
-    const projectsRegistryPath = join(homeDir, ".octogent", "projects.json");
+    const projectsRegistryPath = join(homeDir, ".sentiph", "projects.json");
 
     assertFile(projectConfigPath, "local project config");
     assertFile(gitignorePath, "workspace .gitignore");
@@ -219,7 +219,7 @@ const main = async () => {
 
     const runtimePath = join(
       homeDir,
-      ".octogent",
+      ".sentiph",
       "projects",
       projectConfig.projectId,
       "state",
@@ -235,8 +235,8 @@ const main = async () => {
     }
 
     const gitignoreContent = readFileSync(gitignorePath, "utf8");
-    if (!gitignoreContent.split(/\r?\n/).includes(".octogent")) {
-      throw new Error("Workspace .gitignore did not include the .octogent entry.");
+    if (!gitignoreContent.split(/\r?\n/).includes(".sentiph")) {
+      throw new Error("Workspace .gitignore did not include the .sentiph entry.");
     }
 
     console.log("Public install smoke test passed.");

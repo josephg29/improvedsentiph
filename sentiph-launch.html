@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sentiph — orchestrate Claude Code, build through checked pipelines</title>
+    <meta
+      name="description"
+      content="A parent Claude Code orchestrator that delegates work — and routes every code change through a deterministic build → check → fix pipeline. No more agent soup."
+    />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ["Inter", "system-ui", "sans-serif"],
+              mono: ['"JetBrains Mono"', "ui-monospace", "Menlo", "monospace"],
+            },
+            colors: { term: { green: "#25a244", red: "#c0392b", blue: "#2f6fd0", amber: "#c47d18" } },
+          },
+        },
+      };
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      html { scroll-behavior: smooth; }
+      body { font-feature-settings: "cv01", "ss01"; }
+      .console {
+        --ink: #111; --muted: #888; --line: #d8d8d8;
+        --green: #25a244; --red: #880f1e; --blue: #1e59a3; --amber: #b87000;
+        font-family: "JetBrains Mono", ui-monospace, monospace;
+        background: #f4f4f4; color: var(--ink);
+        border: 1px solid var(--line); border-radius: 12px; overflow: hidden;
+      }
+      .console-nav {
+        display: flex; gap: 4px; padding: 8px 10px; background: #ececec;
+        border-bottom: 1px solid var(--line); flex-wrap: wrap; align-items: center;
+      }
+      .tab { font-size: 12px; letter-spacing: 0.04em; padding: 4px 9px; color: var(--muted); border-radius: 4px; }
+      .tab[data-active="true"] { color: var(--ink); background: #fafafa; box-shadow: inset 0 -2px 0 var(--ink); }
+      .tab-hint { margin-left: auto; font-size: 10.5px; color: var(--muted); }
+      .node {
+        display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px;
+        border: 1px solid #cdcdcd; border-radius: 6px; background: #fafafa;
+        font-size: 12px; color: var(--muted); transition: all .25s ease;
+      }
+      .node:not(.node--end)::after { content: "→"; margin-left: 7px; color: #c2c2c2; }
+      .dot { width: 8px; height: 8px; border-radius: 50%; background: #c2c2c2; transition: background .25s ease; }
+      .node[data-state="active"] { color: var(--blue); border-color: var(--blue); }
+      .node[data-state="active"] .dot { background: var(--blue); animation: pulse 1.05s ease-in-out infinite; }
+      .node[data-state="done"] { color: var(--green); border-color: var(--green); }
+      .node[data-state="done"] .dot { background: var(--green); }
+      .node[data-state="issues"] { color: var(--amber); border-color: var(--amber); }
+      .node[data-state="issues"] .dot { background: var(--amber); }
+      .node[data-state="failed"] { color: var(--red); border-color: var(--red); }
+      .node[data-state="failed"] .dot { background: var(--red); }
+      @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .25; } }
+      @media (prefers-reduced-motion: reduce) { .node[data-state="active"] .dot { animation: none; } html { scroll-behavior: auto; } }
+      .badge { font-size: 10px; letter-spacing: .07em; text-transform: uppercase; padding: 2px 7px; border-radius: 999px; border: 1px solid currentColor; color: var(--muted); }
+      .badge[data-tone="running"] { color: var(--blue); }
+      .badge[data-tone="passed"] { color: var(--green); }
+      .badge[data-tone="issues"] { color: var(--amber); }
+    </style>
+  </head>
+
+  <body class="bg-white text-zinc-900 antialiased dark:bg-zinc-950 dark:text-zinc-100 font-sans">
+    <div aria-hidden="true" class="pointer-events-none fixed inset-x-0 top-0 -z-10 h-[460px] bg-gradient-to-b from-zinc-100 to-transparent dark:from-zinc-900/60"></div>
+
+    <!-- Nav -->
+    <header class="sticky top-0 z-30 border-b border-zinc-200/70 bg-white/80 backdrop-blur-md dark:border-zinc-800/70 dark:bg-zinc-950/80">
+      <div class="mx-auto flex max-w-6xl items-center gap-3 px-5 py-3.5">
+        <span class="grid h-7 w-7 place-items-center rounded-md bg-zinc-900 text-white dark:bg-white dark:text-zinc-900">
+          <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 7h16M4 12h10M4 17h7" stroke-linecap="round"/></svg>
+        </span>
+        <span class="font-semibold tracking-tight">Sentiph</span>
+        <span class="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 font-mono text-[11px] text-emerald-600 dark:text-emerald-400">build log</span>
+        <nav class="ml-auto hidden items-center gap-6 text-sm text-zinc-500 sm:flex">
+          <a href="#what" class="transition hover:text-zinc-900 dark:hover:text-zinc-100">What</a>
+          <a href="#demo" class="transition hover:text-zinc-900 dark:hover:text-zinc-100">Demo</a>
+          <a href="#how" class="transition hover:text-zinc-900 dark:hover:text-zinc-100">How it works</a>
+          <a href="#shipped" class="transition hover:text-zinc-900 dark:hover:text-zinc-100">Shipped</a>
+          <a href="#tweets" class="transition hover:text-zinc-900 dark:hover:text-zinc-100">Announce</a>
+        </nav>
+        <button id="theme-toggle" aria-label="Toggle dark mode" class="ml-3 grid h-8 w-8 place-items-center rounded-md border border-zinc-200 text-zinc-600 transition hover:bg-zinc-100 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-900">
+          <svg class="h-4 w-4 dark:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19" stroke-linecap="round"/></svg>
+          <svg class="hidden h-4 w-4 dark:block" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <main class="mx-auto max-w-6xl px-5">
+      <!-- Hero -->
+      <section class="py-16 sm:py-24">
+        <p class="mb-4 font-mono text-xs uppercase tracking-[0.18em] text-zinc-400">What I built</p>
+        <h1 class="max-w-4xl text-4xl font-semibold leading-[1.07] tracking-tight sm:text-6xl">
+          One Claude Code agent that<br />orchestrates the rest —<br />
+          <span class="text-emerald-600 dark:text-emerald-400">and builds through checked pipelines.</span>
+        </h1>
+        <p class="mt-6 max-w-2xl text-lg leading-relaxed text-zinc-600 dark:text-zinc-400">
+          You talk to one parent. It spawns workers, hands off research, and — when there's
+          <em>code to change</em> — routes it through a deterministic
+          <span class="font-mono text-sm">build → check → fix</span> pipeline instead of a free-form agent.
+          The build is inspected before it comes back. No more agent soup.
+        </p>
+        <div class="mt-9 flex flex-wrap gap-3">
+          <a href="#demo" class="rounded-lg bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-zinc-700 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200">Watch a build run ↓</a>
+          <a href="#how" class="rounded-lg border border-zinc-200 px-5 py-2.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-900">How it works</a>
+        </div>
+        <div class="mt-12 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-zinc-200 bg-zinc-200 text-center dark:border-zinc-800 dark:bg-zinc-800 sm:grid-cols-4">
+          <div class="bg-white p-5 dark:bg-zinc-950"><div class="font-mono text-2xl font-bold">290+</div><div class="mt-1 text-xs text-zinc-500">tests, all green</div></div>
+          <div class="bg-white p-5 dark:bg-zinc-950"><div class="font-mono text-2xl font-bold">2</div><div class="mt-1 text-xs text-zinc-500">adversarial review rounds</div></div>
+          <div class="bg-white p-5 dark:bg-zinc-950"><div class="font-mono text-2xl font-bold">0</div><div class="mt-1 text-xs text-zinc-500">LLMs deciding control flow</div></div>
+          <div class="bg-white p-5 dark:bg-zinc-950"><div class="font-mono text-2xl font-bold">real</div><div class="mt-1 text-xs text-zinc-500">end-to-end, real claude</div></div>
+        </div>
+      </section>
+
+      <!-- The problem / what -->
+      <section id="what" class="scroll-mt-20 border-t border-zinc-200 py-16 dark:border-zinc-800">
+        <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">The problem, and the fix</h2>
+        <div class="mt-8 grid gap-4 md:grid-cols-3">
+          <div class="rounded-xl border border-red-500/20 bg-red-500/5 p-5">
+            <p class="font-mono text-xs uppercase tracking-wider text-red-500">Before</p>
+            <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-400">The parent spawned other Claudes to build. Free-form agents, no checks — confidently wrong code, nobody verifying. <strong class="text-zinc-900 dark:text-zinc-100">Agent soup.</strong></p>
+          </div>
+          <div class="rounded-xl border border-zinc-200 p-5 dark:border-zinc-800">
+            <p class="font-mono text-xs uppercase tracking-wider text-zinc-400">The idea</p>
+            <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-400">Keep the orchestration. But make <strong class="text-zinc-900 dark:text-zinc-100">building</strong> deterministic: a worker builds, independent reviewers check, a fixer corrects — pure code decides the routing.</p>
+          </div>
+          <div class="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-5">
+            <p class="font-mono text-xs uppercase tracking-wider text-emerald-600 dark:text-emerald-400">After</p>
+            <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-400">The parent calls <span class="font-mono">build()</span>; a pipeline runs in its own git worktree and returns a <strong class="text-zinc-900 dark:text-zinc-100">checked</strong> result. The parent stays clean and keeps orchestrating.</p>
+          </div>
+        </div>
+        <div class="mt-8 rounded-xl border border-zinc-200 bg-zinc-50 p-6 dark:border-zinc-800 dark:bg-zinc-900/50">
+          <p class="font-mono text-sm text-zinc-500">The principle the whole thing is built on:</p>
+          <p class="mt-2 font-mono text-lg font-semibold sm:text-xl">Deterministic conductor, non-deterministic workers.</p>
+          <p class="mt-2 max-w-3xl text-sm text-zinc-600 dark:text-zinc-400">Recipes are data. The conductor is pure, unit-tested code — it never asks an LLM "what next?". Only the workers improvise, and their JSON output is schema-validated before it can affect routing.</p>
+        </div>
+      </section>
+
+      <!-- Live demo -->
+      <section id="demo" class="scroll-mt-20 border-t border-zinc-200 py-16 dark:border-zinc-800">
+        <div class="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">A build, on the canvas</h2>
+            <p class="mt-3 max-w-2xl text-zinc-600 dark:text-zinc-400">The orchestrator delegates a build. It shows up as a worker node under the parent and streams live. Press play.</p>
+          </div>
+          <div class="flex gap-2">
+            <button id="demo-standard" class="rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-700 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200">▶ build()</button>
+            <button id="demo-careful" class="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900">▶ careful (human gate)</button>
+          </div>
+        </div>
+
+        <div class="console mt-8">
+          <div class="console-nav">
+            <span class="tab" data-active="false">[1] agents</span>
+            <span class="tab" data-active="true">[1] canvas</span>
+            <span class="tab" data-active="false">[3] activity</span>
+            <span class="tab" data-active="false">[8] settings</span>
+            <span class="tab-hint" id="demo-hint">orchestrator + workers · live</span>
+          </div>
+          <div class="grid gap-px bg-[#d8d8d8] md:grid-cols-[1.1fr_1fr]">
+            <!-- canvas mock -->
+            <div class="relative bg-[#f4f4f4] p-6" style="min-height: 320px">
+              <div class="absolute left-1/2 top-8 -translate-x-1/2 text-center">
+                <div class="mx-auto h-12 w-12 rounded-full bg-[#111]"></div>
+                <div class="mt-1 text-[11px] text-[#444]">sentiph (you)</div>
+              </div>
+              <svg class="pointer-events-none absolute inset-0 h-full w-full" id="demo-wire"></svg>
+              <div class="absolute" id="demo-worker" style="left: 50%; top: 165px; transform: translateX(-50%); text-align:center;">
+                <div id="demo-square" class="mx-auto grid h-9 w-9 place-items-center rounded-md" style="background:#9ca3af">
+                  <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="#fafafa" stroke-width="2.4"><path d="M5 12l4 5L19 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </div>
+                <div id="demo-pill" class="mx-auto mt-1 inline-block rounded-full px-2 py-0.5 text-[9px] tracking-wider text-white" style="background:#9ca3af">PENDING</div>
+                <div class="mt-1 text-[11px] text-[#444]">add /healthz</div>
+                <div id="demo-actions" class="mt-1"></div>
+              </div>
+            </div>
+            <!-- detail mock -->
+            <div class="bg-[#f4f4f4] p-5 font-mono text-[12px] text-[#222]" style="border-left:1px solid #d8d8d8">
+              <div class="mb-3 flex items-center gap-2">
+                <span class="badge" id="demo-badge" data-tone="">PENDING</span>
+                <span class="text-[#888]">run-1 · under sentiph</span>
+              </div>
+              <ol class="flex flex-wrap items-center gap-1" id="demo-flow">
+                <li class="node" data-state="pending"><span class="dot"></span>Build</li>
+                <li class="node" data-state="pending"><span class="dot"></span>Check</li>
+                <li class="node" data-state="pending"><span class="dot"></span>Fix</li>
+                <li class="node node--end" data-state="pending"><span class="dot"></span>Done</li>
+              </ol>
+              <div id="demo-result" class="mt-4 text-[#444]">Press a button to run a pipeline.</div>
+            </div>
+          </div>
+        </div>
+        <p class="mt-3 font-mono text-[11px] text-zinc-400">Mocked for illustration — the real thing streams over the websocket and runs real <code>claude -p</code> workers in an isolated git worktree.</p>
+      </section>
+
+      <!-- How it works -->
+      <section id="how" class="scroll-mt-20 border-t border-zinc-200 py-16 dark:border-zinc-800">
+        <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">How it works</h2>
+        <div class="console mt-8 p-6 font-mono text-[13px] leading-relaxed text-[#333]">
+          <span class="text-[#888]">you ──▶</span> <b>PARENT</b> <span class="text-[#888]">(claude + sentiph MCP + orchestrator prompt — stays clean)</span><br/>
+          <span class="pl-8 text-[#888]">├─</span> <span style="color:#1e59a3">spawn_terminal(task, model, effort)</span> <span class="text-[#888]">──▶ plain worker (research / inspect / glue)</span><br/>
+          <span class="pl-8 text-[#888]">├─</span> <span style="color:#25a244">build(task)</span> <span class="text-[#888]">──▶ pipeline worker: build → check ×N → fix, in its own worktree</span><br/>
+          <span class="pl-8 text-[#888]">└─</span> <span class="text-[#888]">list / read / approve / cancel — watch, then read the checked result</span>
+        </div>
+        <div class="mt-8 grid gap-4 md:grid-cols-3">
+          <div class="rounded-xl border border-zinc-200 p-5 dark:border-zinc-800">
+            <h3 class="font-medium">Recipes + a picker</h3>
+            <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-400"><span class="font-mono text-xs">quick</span> / <span class="font-mono text-xs">standard</span> / <span class="font-mono text-xs">careful</span>. A deterministic keyword picker (not an LLM) sizes each build: risky tasks → careful, trivial → quick.</p>
+          </div>
+          <div class="rounded-xl border border-zinc-200 p-5 dark:border-zinc-800">
+            <h3 class="font-medium">A human gate</h3>
+            <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-400">The careful recipe pauses at <span class="font-mono text-xs">awaiting_approval</span> once the work verifies — Approve / Reject right on the node.</p>
+          </div>
+          <div class="rounded-xl border border-zinc-200 p-5 dark:border-zinc-800">
+            <h3 class="font-medium">Isolated &amp; durable</h3>
+            <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-400">Each run gets its own git worktree + branch <span class="font-mono text-xs">sentiph/run-N</span>; a passed run is committed for you to merge. Survives an API restart.</p>
+          </div>
+          <div class="rounded-xl border border-zinc-200 p-5 dark:border-zinc-800">
+            <h3 class="font-medium">Per-worker tuning</h3>
+            <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-400">The orchestrator picks each child's <span class="font-mono text-xs">model</span> + <span class="font-mono text-xs">effort</span> — haiku for mechanical, opus for hard — and can spawn group leaders for recursive fan-out.</p>
+          </div>
+          <div class="rounded-xl border border-zinc-200 p-5 dark:border-zinc-800">
+            <h3 class="font-medium">Schema-validated</h3>
+            <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-400">Workers run via <span class="font-mono text-xs">claude -p --json-schema</span>; output is re-validated before routing trusts it. Completion = the process exits, never screen-scraping.</p>
+          </div>
+          <div class="rounded-xl border border-zinc-200 p-5 dark:border-zinc-800">
+            <h3 class="font-medium">Real nodes, one canvas</h3>
+            <p class="mt-2 text-sm text-zinc-600 dark:text-zinc-400">Builds render as worker nodes on the same force-directed canvas as your agents — no separate tab, no overlay. The parent never leaves the orchestration layer.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Shipped -->
+      <section id="shipped" class="scroll-mt-20 border-t border-zinc-200 py-16 dark:border-zinc-800">
+        <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">What shipped</h2>
+        <div class="mt-8 grid gap-8 md:grid-cols-2">
+          <div>
+            <p class="mb-3 font-mono text-xs uppercase tracking-wider text-zinc-400">Act 1 — the pipeline engine</p>
+            <ul class="space-y-2.5 text-sm text-zinc-600 dark:text-zinc-400">
+              <li>✓ Headless worker front door (<span class="font-mono text-xs">claude -p</span> + JSON schema), dependency-free validator</li>
+              <li>✓ Pure, exhaustively-tested router — every trajectory + the gate + converge</li>
+              <li>✓ Conductor + durable run store + <span class="font-mono text-xs">/api/runs</span>; parallel checkers</li>
+              <li>✓ Per-run git worktree, cancel cleanup, shared concurrency cap</li>
+              <li>✓ Recipes + deterministic picker + human approval gate</li>
+              <li>✓ Two adversarial review rounds → real bugs caught &amp; fixed</li>
+            </ul>
+          </div>
+          <div>
+            <p class="mb-3 font-mono text-xs uppercase tracking-wider text-zinc-400">Act 2 — the orchestration</p>
+            <ul class="space-y-2.5 text-sm text-zinc-600 dark:text-zinc-400">
+              <li>✓ Restored the parent orchestrator (MCP: spawn / list / message / read / close)</li>
+              <li>✓ <span class="font-mono text-xs">build()</span> tool → a pipeline worker parented to the orchestrator</li>
+              <li>✓ Routing prompt: code change → build, read-only → spawn</li>
+              <li>✓ Per-child model / effort / color / group-leader</li>
+              <li>✓ Builds as live nodes on the canvas (overlay &amp; standalone tab removed)</li>
+              <li>✓ Verified live end-to-end with real claude + real git</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tweets -->
+      <section id="tweets" class="scroll-mt-20 border-t border-zinc-200 py-16 dark:border-zinc-800">
+        <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">Announce it</h2>
+        <p class="mt-3 max-w-2xl text-zinc-600 dark:text-zinc-400">Five drafts, five angles. Hover a card and hit copy.</p>
+
+        <div class="mt-8 grid gap-4 md:grid-cols-2">
+          <!-- card -->
+          <article class="group relative rounded-2xl border border-zinc-200 bg-white p-5 transition hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900/40 dark:hover:border-zinc-700">
+            <div class="flex items-center gap-2.5">
+              <span class="grid h-9 w-9 place-items-center rounded-full bg-zinc-900 font-mono text-sm text-white dark:bg-white dark:text-zinc-900">S</span>
+              <div class="leading-tight">
+                <div class="text-sm font-semibold">you</div>
+                <div class="text-xs text-zinc-500">@yourhandle</div>
+              </div>
+              <span class="ml-auto font-mono text-[10px] uppercase tracking-wider text-zinc-400">problem → fix</span>
+            </div>
+            <p class="tweet mt-3 whitespace-pre-line text-[15px] leading-relaxed text-zinc-800 dark:text-zinc-200">Multi-agent coding has a dirty secret: when agents "build," it's slop. Confidently wrong code, nobody checking.
+
+So I rebuilt Sentiph. Now one Claude orchestrates the rest — and every code change runs through a deterministic build → check → fix pipeline before it's accepted.
+
+No more agent soup. 🧵</p>
+            <button class="copy-btn mt-3 inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800">Copy</button>
+          </article>
+
+          <article class="group relative rounded-2xl border border-zinc-200 bg-white p-5 transition hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900/40 dark:hover:border-zinc-700">
+            <div class="flex items-center gap-2.5">
+              <span class="grid h-9 w-9 place-items-center rounded-full bg-zinc-900 font-mono text-sm text-white dark:bg-white dark:text-zinc-900">S</span>
+              <div class="leading-tight">
+                <div class="text-sm font-semibold">you</div>
+                <div class="text-xs text-zinc-500">@yourhandle</div>
+              </div>
+              <span class="ml-auto font-mono text-[10px] uppercase tracking-wider text-zinc-400">the principle</span>
+            </div>
+            <p class="tweet mt-3 whitespace-pre-line text-[15px] leading-relaxed text-zinc-800 dark:text-zinc-200">The rule that makes multi-agent coding actually work:
+
+Deterministic conductor, non-deterministic workers.
+
+Recipes are data. A pure, unit-tested router decides "what next" — never an LLM. Workers run headless claude -p --json-schema, and their output is validated before it can touch routing.</p>
+            <button class="copy-btn mt-3 inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800">Copy</button>
+          </article>
+
+          <article class="group relative rounded-2xl border border-zinc-200 bg-white p-5 transition hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900/40 dark:hover:border-zinc-700">
+            <div class="flex items-center gap-2.5">
+              <span class="grid h-9 w-9 place-items-center rounded-full bg-zinc-900 font-mono text-sm text-white dark:bg-white dark:text-zinc-900">S</span>
+              <div class="leading-tight">
+                <div class="text-sm font-semibold">you</div>
+                <div class="text-xs text-zinc-500">@yourhandle</div>
+              </div>
+              <span class="ml-auto font-mono text-[10px] uppercase tracking-wider text-zinc-400">show, don't tell</span>
+            </div>
+            <p class="tweet mt-3 whitespace-pre-line text-[15px] leading-relaxed text-zinc-800 dark:text-zinc-200">You open one Claude Code session. You only talk to it.
+
+It spawns workers for research, picks each one's model + effort, and when there's code to write it calls build() → a checked pipeline runs in its own git worktree and hands back a verified result.
+
+The parent never gets its hands dirty.</p>
+            <button class="copy-btn mt-3 inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800">Copy</button>
+          </article>
+
+          <article class="group relative rounded-2xl border border-zinc-200 bg-white p-5 transition hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900/40 dark:hover:border-zinc-700">
+            <div class="flex items-center gap-2.5">
+              <span class="grid h-9 w-9 place-items-center rounded-full bg-zinc-900 font-mono text-sm text-white dark:bg-white dark:text-zinc-900">S</span>
+              <div class="leading-tight">
+                <div class="text-sm font-semibold">you</div>
+                <div class="text-xs text-zinc-500">@yourhandle</div>
+              </div>
+              <span class="ml-auto font-mono text-[10px] uppercase tracking-wider text-zinc-400">meta</span>
+            </div>
+            <p class="tweet mt-3 whitespace-pre-line text-[15px] leading-relaxed text-zinc-800 dark:text-zinc-200">I built a system where Claude Code orchestrates Claude Code... using Claude Code.
+
+Parent agent → spawns workers → routes every build through a build/check/fix pipeline → lands a committed branch for me to merge.
+
+290+ tests, 2 adversarial review rounds, verified end-to-end. Wild week.</p>
+            <button class="copy-btn mt-3 inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800">Copy</button>
+          </article>
+
+          <article class="group relative rounded-2xl border border-zinc-200 bg-white p-5 transition hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900/40 dark:hover:border-zinc-700 md:col-span-2">
+            <div class="flex items-center gap-2.5">
+              <span class="grid h-9 w-9 place-items-center rounded-full bg-zinc-900 font-mono text-sm text-white dark:bg-white dark:text-zinc-900">S</span>
+              <div class="leading-tight">
+                <div class="text-sm font-semibold">you</div>
+                <div class="text-xs text-zinc-500">@yourhandle</div>
+              </div>
+              <span class="ml-auto font-mono text-[10px] uppercase tracking-wider text-zinc-400">demo bait</span>
+            </div>
+            <p class="tweet mt-3 whitespace-pre-line text-[15px] leading-relaxed text-zinc-800 dark:text-zinc-200">Sentiph update — pipelines are now the orchestrator's build engine:
+
+◆ build() → build → check ×N → fix, in an isolated worktree
+◆ a picker auto-sizes it (quick / standard / careful)
+◆ careful recipe = a human approval gate
+◆ builds show up as live nodes on the canvas
+◆ per-worker model + effort
+
+[demo clip]</p>
+            <button class="copy-btn mt-3 inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800">Copy</button>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="border-t border-zinc-200 py-10 dark:border-zinc-800">
+      <div class="mx-auto flex max-w-6xl flex-col items-start justify-between gap-3 px-5 text-sm text-zinc-500 sm:flex-row sm:items-center">
+        <p>Sentiph — orchestrate Claude Code, build through checked pipelines.</p>
+        <p class="font-mono text-xs">build → check → fix → done</p>
+      </div>
+    </footer>
+
+    <script>
+      const root = document.documentElement;
+      document.getElementById("theme-toggle").addEventListener("click", () => root.classList.toggle("dark"));
+
+      // Copy tweet buttons
+      for (const btn of document.querySelectorAll(".copy-btn")) {
+        btn.addEventListener("click", async () => {
+          const text = btn.closest("article").querySelector(".tweet").innerText.trim();
+          try {
+            await navigator.clipboard.writeText(text);
+          } catch {
+            const ta = document.createElement("textarea");
+            ta.value = text;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand("copy");
+            ta.remove();
+          }
+          const original = btn.textContent;
+          btn.textContent = "Copied ✓";
+          setTimeout(() => {
+            btn.textContent = original;
+          }, 1400);
+        });
+      }
+
+      // wire from parent to worker
+      const drawWire = () => {
+        const svg = document.getElementById("demo-wire");
+        svg.innerHTML = `<line x1="50%" y1="64" x2="50%" y2="160" stroke="#bbb" stroke-width="1.4" stroke-dasharray="3 3"/>`;
+      };
+      drawWire(); window.addEventListener("resize", drawWire);
+
+      const square = document.getElementById("demo-square");
+      const pill = document.getElementById("demo-pill");
+      const badge = document.getElementById("demo-badge");
+      const flow = document.getElementById("demo-flow").children;
+      const result = document.getElementById("demo-result");
+      const actions = document.getElementById("demo-actions");
+      const COLOR = { pending:"#9ca3af", running:"#1e59a3", passed:"#25a244", issues:"#b87000", failed:"#880f1e" };
+      let timers = [];
+      const clear = () => { timers.forEach(clearTimeout); timers = []; };
+      const wait = (ms) => new Promise((r) => timers.push(setTimeout(r, ms)));
+
+      const setStatus = (label, color, tone) => {
+        square.style.background = color; pill.style.background = color; pill.textContent = label;
+        badge.textContent = label; badge.setAttribute("data-tone", tone || "");
+      };
+      const setFlow = (states) => { ["0","1","2","3"].forEach((i,k)=> flow[k].setAttribute("data-state", states[k])); };
+
+      async function run(careful) {
+        clear(); actions.innerHTML = "";
+        setStatus("PENDING", COLOR.pending, ""); setFlow(["pending","pending","pending","pending"]);
+        result.textContent = careful ? "careful recipe: build → check ×3 → human gate" : "standard recipe: build → check ×2 → fix";
+        await wait(500);
+        setStatus("BUILDING", COLOR.running, "running"); setFlow(["active","pending","pending","active"]);
+        await wait(1400);
+        setStatus("CHECKING", COLOR.running, "running"); setFlow(["done","active","pending","active"]);
+        await wait(1400);
+        if (careful) {
+          setStatus("APPROVE?", COLOR.issues, "issues"); setFlow(["done","done","pending","issues"]);
+          result.innerHTML = "Verified by 3 reviewers. Waiting on you.";
+          actions.innerHTML = `<button id="ap" style="background:#25a244;color:#fff;border-radius:5px;padding:2px 9px;font-size:9px;letter-spacing:.05em;margin-right:4px">APPROVE</button><button id="rj" style="color:#fff;background:#880f1e;border-radius:5px;padding:2px 9px;font-size:9px;letter-spacing:.05em">REJECT</button>`;
+          document.getElementById("ap").onclick = () => { clear(); setStatus("PASSED", COLOR.passed, "passed"); setFlow(["done","done","done","done"]); result.innerHTML = "✓ Approved. Committed to <b>sentiph/run-1</b> for you to merge."; actions.innerHTML=""; };
+          document.getElementById("rj").onclick = () => { clear(); setStatus("ISSUES", COLOR.issues, "issues"); setFlow(["done","done","done","issues"]); result.textContent = "Completed with issues — surfaced, not merged."; actions.innerHTML=""; };
+          return;
+        }
+        setStatus("PASSED", COLOR.passed, "passed"); setFlow(["done","done","pending","done"]);
+        result.innerHTML = "✓ Added /healthz. Verified by both checkers. Committed to <b>sentiph/run-1</b> for you to merge. ($0.18)";
+      }
+      document.getElementById("demo-standard").onclick = () => run(false);
+      document.getElementById("demo-careful").onclick = () => run(true);
+    </script>
+  </body>
+</html>

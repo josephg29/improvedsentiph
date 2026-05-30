@@ -33,7 +33,7 @@ importers:
 
   apps/api:
     dependencies:
-      '@octogent/core':
+      '@sentiph/core':
         specifier: workspace:*
         version: link:../../packages/core
       node-pty:
@@ -49,7 +49,7 @@ importers:
 
   apps/web:
     dependencies:
-      '@octogent/core':
+      '@sentiph/core':
         specifier: workspace:*
         version: link:../../packages/core
       '@xterm/addon-fit':

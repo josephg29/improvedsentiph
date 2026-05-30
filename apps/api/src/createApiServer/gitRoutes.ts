@@ -1,27 +1,27 @@
 import { RuntimeInputError } from "../terminalRuntime";
 import {
-  parseTentacleCommitMessage,
-  parseTentaclePullRequestCreateInput,
-  parseTentacleSyncBaseRef,
+  parseAgentCommitMessage,
+  parseAgentPullRequestCreateInput,
+  parseAgentSyncBaseRef,
 } from "./gitParsers";
 import type { ApiRouteHandler } from "./routeHelpers";
 import { readJsonBodyOrWriteError, writeJson, writeMethodNotAllowed } from "./routeHelpers";
 
-const TENTACLE_GIT_ACTION_PATH_PATTERN =
-  /^\/api\/tentacles\/([^/]+)\/git\/(status|commit|push|sync)$/;
-const TENTACLE_GIT_PULL_REQUEST_PATH_PATTERN = /^\/api\/tentacles\/([^/]+)\/git\/pr$/;
-const TENTACLE_GIT_PULL_REQUEST_MERGE_PATH_PATTERN = /^\/api\/tentacles\/([^/]+)\/git\/pr\/merge$/;
+const AGENT_GIT_ACTION_PATH_PATTERN =
+  /^\/api\/agents\/([^/]+)\/git\/(status|commit|push|sync)$/;
+const AGENT_GIT_PULL_REQUEST_PATH_PATTERN = /^\/api\/agents\/([^/]+)\/git\/pr$/;
+const AGENT_GIT_PULL_REQUEST_MERGE_PATH_PATTERN = /^\/api\/agents\/([^/]+)\/git\/pr\/merge$/;
 
-export const handleTentacleGitRoute: ApiRouteHandler = async (
+export const handleAgentGitRoute: ApiRouteHandler = async (
   { request, response, requestUrl, corsOrigin },
   { runtime },
 ) => {
-  const gitMatch = requestUrl.pathname.match(TENTACLE_GIT_ACTION_PATH_PATTERN);
+  const gitMatch = requestUrl.pathname.match(AGENT_GIT_ACTION_PATH_PATTERN);
   if (!gitMatch) {
     return false;
   }
 
-  const tentacleId = decodeURIComponent(gitMatch[1] ?? "");
+  const agentId = decodeURIComponent(gitMatch[1] ?? "");
   const action = gitMatch[2];
 
   try {
@@ -31,9 +31,9 @@ export const handleTentacleGitRoute: ApiRouteHandler = async (
         return true;
       }
 
-      const payload = runtime.readTentacleGitStatus(tentacleId);
+      const payload = runtime.readAgentGitStatus(agentId);
       if (!payload) {
-        writeJson(response, 404, { error: "Tentacle not found." }, corsOrigin);
+        writeJson(response, 404, { error: "Agent not found." }, corsOrigin);
         return true;
       }
 
@@ -52,7 +52,7 @@ export const handleTentacleGitRoute: ApiRouteHandler = async (
         return true;
       }
 
-      const commitMessageResult = parseTentacleCommitMessage(bodyReadResult.payload);
+      const commitMessageResult = parseAgentCommitMessage(bodyReadResult.payload);
       if (commitMessageResult.error || !commitMessageResult.message) {
         writeJson(
           response,
@@ -63,9 +63,9 @@ export const handleTentacleGitRoute: ApiRouteHandler = async (
         return true;
       }
 
-      const payload = runtime.commitTentacleWorktree(tentacleId, commitMessageResult.message);
+      const payload = runtime.commitAgentWorktree(agentId, commitMessageResult.message);
       if (!payload) {
-        writeJson(response, 404, { error: "Tentacle not found." }, corsOrigin);
+        writeJson(response, 404, { error: "Agent not found." }, corsOrigin);
         return true;
       }
 
@@ -79,9 +79,9 @@ export const handleTentacleGitRoute: ApiRouteHandler = async (
         return true;
       }
 
-      const payload = runtime.pushTentacleWorktree(tentacleId);
+      const payload = runtime.pushAgentWorktree(agentId);
       if (!payload) {
-        writeJson(response, 404, { error: "Tentacle not found." }, corsOrigin);
+        writeJson(response, 404, { error: "Agent not found." }, corsOrigin);
         return true;
       }
 
@@ -99,15 +99,15 @@ export const handleTentacleGitRoute: ApiRouteHandler = async (
       return true;
     }
 
-    const baseRefResult = parseTentacleSyncBaseRef(bodyReadResult.payload);
+    const baseRefResult = parseAgentSyncBaseRef(bodyReadResult.payload);
     if (baseRefResult.error) {
       writeJson(response, 400, { error: baseRefResult.error }, corsOrigin);
       return true;
     }
 
-    const payload = runtime.syncTentacleWorktree(tentacleId, baseRefResult.baseRef ?? undefined);
+    const payload = runtime.syncAgentWorktree(agentId, baseRefResult.baseRef ?? undefined);
     if (!payload) {
-      writeJson(response, 404, { error: "Tentacle not found." }, corsOrigin);
+      writeJson(response, 404, { error: "Agent not found." }, corsOrigin);
       return true;
     }
 
@@ -122,22 +122,22 @@ export const handleTentacleGitRoute: ApiRouteHandler = async (
   }
 };
 
-export const handleTentacleGitPullRequestRoute: ApiRouteHandler = async (
+export const handleAgentGitPullRequestRoute: ApiRouteHandler = async (
   { request, response, requestUrl, corsOrigin },
   { runtime },
 ) => {
-  const mergeMatch = requestUrl.pathname.match(TENTACLE_GIT_PULL_REQUEST_MERGE_PATH_PATTERN);
+  const mergeMatch = requestUrl.pathname.match(AGENT_GIT_PULL_REQUEST_MERGE_PATH_PATTERN);
   if (mergeMatch) {
     if (request.method !== "POST") {
       writeMethodNotAllowed(response, corsOrigin);
       return true;
     }
 
-    const tentacleId = decodeURIComponent(mergeMatch[1] ?? "");
+    const agentId = decodeURIComponent(mergeMatch[1] ?? "");
     try {
-      const payload = runtime.mergeTentaclePullRequest(tentacleId);
+      const payload = runtime.mergeAgentPullRequest(agentId);
       if (!payload) {
-        writeJson(response, 404, { error: "Tentacle not found." }, corsOrigin);
+        writeJson(response, 404, { error: "Agent not found." }, corsOrigin);
         return true;
       }
 
@@ -152,18 +152,18 @@ export const handleTentacleGitPullRequestRoute: ApiRouteHandler = async (
     }
   }
 
-  const prMatch = requestUrl.pathname.match(TENTACLE_GIT_PULL_REQUEST_PATH_PATTERN);
+  const prMatch = requestUrl.pathname.match(AGENT_GIT_PULL_REQUEST_PATH_PATTERN);
   if (!prMatch) {
     return false;
   }
 
-  const tentacleId = decodeURIComponent(prMatch[1] ?? "");
+  const agentId = decodeURIComponent(prMatch[1] ?? "");
 
   try {
     if (request.method === "GET") {
-      const payload = runtime.readTentaclePullRequest(tentacleId);
+      const payload = runtime.readAgentPullRequest(agentId);
       if (!payload) {
-        writeJson(response, 404, { error: "Tentacle not found." }, corsOrigin);
+        writeJson(response, 404, { error: "Agent not found." }, corsOrigin);
         return true;
       }
 
@@ -181,7 +181,7 @@ export const handleTentacleGitPullRequestRoute: ApiRouteHandler = async (
       return true;
     }
 
-    const pullRequestInput = parseTentaclePullRequestCreateInput(bodyReadResult.payload);
+    const pullRequestInput = parseAgentPullRequestCreateInput(bodyReadResult.payload);
     if (pullRequestInput.error || !pullRequestInput.title) {
       writeJson(
         response,
@@ -192,13 +192,13 @@ export const handleTentacleGitPullRequestRoute: ApiRouteHandler = async (
       return true;
     }
 
-    const payload = runtime.createTentaclePullRequest(tentacleId, {
+    const payload = runtime.createAgentPullRequest(agentId, {
       title: pullRequestInput.title,
       ...(pullRequestInput.body.length > 0 ? { body: pullRequestInput.body } : {}),
       ...(pullRequestInput.baseRef !== null ? { baseRef: pullRequestInput.baseRef } : {}),
     });
     if (!payload) {
-      writeJson(response, 404, { error: "Tentacle not found." }, corsOrigin);
+      writeJson(response, 404, { error: "Agent not found." }, corsOrigin);
       return true;
     }
 

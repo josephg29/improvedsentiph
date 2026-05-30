@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 
 const require = createRequire(import.meta.url);
 
-export const createShellEnvironment = (options?: { octogentSessionId?: string }) => {
+export const createShellEnvironment = (options?: { sentiphSessionId?: string }) => {
   const env: Record<string, string> = {};
   for (const [key, value] of Object.entries(process.env)) {
     if (typeof value === "string") {
@@ -13,8 +13,8 @@ export const createShellEnvironment = (options?: { octogentSessionId?: string })
   }
   env.TERM = "xterm-256color";
   env.COLORTERM = "truecolor";
-  if (options?.octogentSessionId) {
-    env.OCTOGENT_SESSION_ID = options.octogentSessionId;
+  if (options?.sentiphSessionId) {
+    env.SENTIPH_SESSION_ID = options.sentiphSessionId;
   }
   return env;
 };

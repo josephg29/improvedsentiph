@@ -1,4 +1,4 @@
-import type { AgentState, TerminalSnapshot, TerminalSnapshotReader } from "@octogent/core";
+import type { AgentState, TerminalSnapshot, TerminalSnapshotReader } from "@sentiph/core";
 
 type HttpResponse = {
   ok: boolean;
@@ -47,8 +47,8 @@ const isTerminalSnapshot = (value: unknown): value is TerminalSnapshot => {
     typeof snapshot.terminalId === "string" &&
     typeof snapshot.label === "string" &&
     isAgentState(snapshot.state) &&
-    typeof snapshot.tentacleId === "string" &&
-    (snapshot.tentacleName === undefined || typeof snapshot.tentacleName === "string") &&
+    typeof snapshot.agentId === "string" &&
+    (snapshot.agentName === undefined || typeof snapshot.agentName === "string") &&
     (snapshot.workspaceMode === undefined ||
       snapshot.workspaceMode === "shared" ||
       snapshot.workspaceMode === "worktree") &&

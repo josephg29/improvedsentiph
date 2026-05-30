@@ -153,16 +153,8 @@ export const useForceSimulation = ({
         .force(
           "link",
           forceLink<SimNode, SimLink>(simLinks)
-            .distance((link: SimLink) => {
-              const target = link.target as SimNode;
-              return target._gn.type === "inactive-session"
-                ? p.linkDistance * 0.35
-                : p.linkDistance;
-            })
-            .strength((link: SimLink) => {
-              const target = link.target as SimNode;
-              return target._gn.type === "inactive-session" ? p.linkStrength * 1.5 : p.linkStrength;
-            }),
+            .distance(() => p.linkDistance)
+            .strength(() => p.linkStrength),
         )
         .force(
           "charge",
@@ -240,19 +232,7 @@ export const useForceSimulation = ({
 
     const linkForce = sim.force("link") as ReturnType<typeof forceLink<SimNode, SimLink>> | null;
     if (linkForce) {
-      linkForce
-        .distance((link: SimLink) => {
-          const target = link.target as SimNode;
-          return target._gn.type === "inactive-session"
-            ? params.linkDistance * 0.35
-            : params.linkDistance;
-        })
-        .strength((link: SimLink) => {
-          const target = link.target as SimNode;
-          return target._gn.type === "inactive-session"
-            ? params.linkStrength * 1.5
-            : params.linkStrength;
-        });
+      linkForce.distance(() => params.linkDistance).strength(() => params.linkStrength);
     }
 
     const chargeForce = sim.force("charge") as ReturnType<typeof forceManyBody<SimNode>> | null;

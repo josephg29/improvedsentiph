@@ -1,4 +1,4 @@
-.dashboard-deck-shell {
+﻿.dashboard-deck-shell {
   min-height: 0;
   display: grid;
   grid-template-columns: auto;
@@ -137,7 +137,7 @@
 
 .active-agents-codex-usage {
   border: 1px solid var(--sidebar-border);
-  background: color-mix(in srgb, var(--sidebar-row) 90%, #131922 10%);
+  background: color-mix(in srgb, var(--sidebar-row) 90%, #cccccc 10%);
   padding: 0.36rem 0.4rem;
   display: grid;
   gap: 0.34rem;
@@ -189,11 +189,11 @@
   border: 1px solid var(--sidebar-border-strong);
   background: repeating-linear-gradient(
     90deg,
-    color-mix(in srgb, #111922 80%, #0a0d12 20%) 0 13px,
-    color-mix(in srgb, #090c10 78%, #121923 22%) 13px 15px
+    color-mix(in srgb, #e8e8e8 80%, #dddddd 20%) 0 13px,
+    color-mix(in srgb, #dddddd 78%, #ebebeb 22%) 13px 15px
   );
   overflow: hidden;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, #000000 56%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, #000000 14%, transparent);
 }
 
 .active-agents-codex-usage-rail-fill {
@@ -201,8 +201,8 @@
   inset: 0 auto 0 0;
   background: repeating-linear-gradient(
       90deg,
-      color-mix(in srgb, var(--accent-primary) 52%, #e1b56a) 0 13px,
-      color-mix(in srgb, var(--accent-primary) 22%, #1c2632) 13px 15px
+      color-mix(in srgb, var(--accent-primary) 52%, #888888) 0 13px,
+      color-mix(in srgb, var(--accent-primary) 22%, #cccccc) 13px 15px
     ),
     linear-gradient(
       180deg,
@@ -213,7 +213,7 @@
 }
 
 .active-agents-codex-usage-percent {
-  color: color-mix(in srgb, var(--accent-primary) 62%, #f0dcb2 38%);
+  color: color-mix(in srgb, var(--accent-primary) 62%, #888888 38%);
   letter-spacing: 0.05em;
   font-size: 0.68rem;
   font-variant-numeric: tabular-nums;
@@ -363,7 +363,7 @@
 
 .active-agents-maximize {
   --action-button-border: var(--sidebar-border-strong);
-  --action-button-bg: color-mix(in srgb, var(--sidebar-row) 86%, #11161d 14%);
+  --action-button-bg: color-mix(in srgb, var(--sidebar-row) 86%, #f0f0f0 14%);
   --action-button-color: var(--text-primary);
 }
 
@@ -403,8 +403,8 @@
 }
 
 .active-agents-agent-row--root {
-  background: color-mix(in srgb, var(--sidebar-row) 78%, #243446 22%);
-  border-left: 3px solid color-mix(in srgb, var(--accent-primary) 44%, #90b6e4 56%);
+  background: color-mix(in srgb, var(--sidebar-row) 78%, #c8d8ee 22%);
+  border-left: 3px solid color-mix(in srgb, var(--accent-primary) 44%, #aaaaaa 56%);
   font-weight: 600;
   padding-left: 0.42rem;
 }

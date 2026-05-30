@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Did I get it right?</title>
+    <style>
+      :root { color-scheme: light; }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: #0c0c0d;
+        color: #e8e8e8;
+        font: 16px/1.6 "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+        padding: 40px 20px 80px;
+      }
+      .wrap { max-width: 760px; margin: 0 auto; }
+      h1 { font-size: 28px; margin: 0 0 4px; letter-spacing: -0.01em; }
+      .sub { color: #8a8a8a; margin: 0 0 32px; font-size: 14px; }
+      .card {
+        border: 1px solid #2a2a2c;
+        border-radius: 12px;
+        padding: 20px 22px;
+        margin: 0 0 16px;
+        background: #131314;
+      }
+      .tag {
+        display: inline-block;
+        font-size: 11px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        padding: 2px 9px;
+        border-radius: 999px;
+        margin-bottom: 12px;
+      }
+      .tag.bad { color: #ff7a7a; border: 1px solid #5a2424; background: #2a1414; }
+      .tag.want { color: #9bd4ff; border: 1px solid #234a5a; background: #122029; }
+      .tag.do { color: #7ee29a; border: 1px solid #1f5a36; background: #102818; }
+      p { margin: 8px 0; }
+      strong { color: #fff; }
+      .muted { color: #9a9a9a; }
+      ol, ul { margin: 10px 0 4px; padding-left: 22px; }
+      li { margin: 9px 0; }
+      .flow {
+        display: inline-flex; gap: 6px; align-items: center; flex-wrap: wrap;
+        font-size: 13px; color: #cfcfcf;
+        border: 1px solid #2a2a2c; border-radius: 8px; padding: 6px 10px; background: #0f0f10;
+      }
+      .pill { padding: 1px 7px; border-radius: 5px; background: #1d1d1f; }
+      .green { color: #7ee29a; } .blue { color: #9bd4ff; } .amber { color: #f0c674; }
+      .ask {
+        border: 1px solid #3a3a1f; background: #1b1b10; color: #f0e6b0;
+        border-radius: 12px; padding: 16px 20px; margin-top: 22px;
+      }
+      .footer { margin-top: 26px; color: #8a8a8a; font-size: 13px; }
+      code { background: #1d1d1f; padding: 1px 6px; border-radius: 4px; color: #d8d8d8; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>Did I get it right?</h1>
+      <p class="sub">Repeating your idea back before I touch anything.</p>
+
+      <div class="card">
+        <span class="tag bad">The problem I created</span>
+        <p>
+          Old Sentiph: you open <strong>one parent Claude</strong>. It <strong>spawns other Claudes</strong>
+          to do the work, and you only ever talk to the parent.
+        </p>
+        <p>
+          When a spawned worker <strong>builds</strong> something, it’s a free-form agent →
+          <span class="muted">messy, unchecked “agent soup slop.”</span>
+        </p>
+        <p>
+          We built <strong>Pipelines</strong> (<span class="green">build → check → fix</span>, deterministic
+          &amp; checked) to fix that — but I bolted it on as a <strong>separate <code>[2] Pipelines</code> tab</strong>.
+          That’s not what you wanted, and the old parent-spawns-children orchestration is gone from this repo.
+        </p>
+      </div>
+
+      <div class="card">
+        <span class="tag want">What you actually want</span>
+        <p>
+          Bring back the <strong>parent orchestrator</strong> (parent Claude spawns &amp; coordinates child
+          Claudes; you stay at the parent).
+        </p>
+        <p>
+          But when the parent needs to <strong>build</strong>, it spawns a
+          <strong>pipeline session</strong> instead of a raw worker —
+        </p>
+        <p class="flow">
+          parent Claude <span class="muted">→ “build X”</span> →
+          <span class="pill blue">pipeline</span> →
+          <span class="pill">build</span> →
+          <span class="pill green">check</span> →
+          <span class="pill amber">fix</span> →
+          <span class="muted">checked result back to parent</span>
+        </p>
+        <p style="margin-top:12px">
+          So <strong>Pipelines becomes the build engine the orchestrator uses</strong> — not a separate feature.
+        </p>
+      </div>
+
+      <div class="card">
+        <span class="tag do">What I’ll build</span>
+        <ol>
+          <li>
+            <strong>Restore the orchestration layer</strong> from old Sentiph — the parent Claude gets its
+            tools back to <code>spawn</code> / <code>list</code> / <code>message</code> / <code>read</code> /
+            <code>close</code> child terminals. You only talk to the parent.
+          </li>
+          <li>
+            <strong>Make “build” a pipeline.</strong> Add a build tool so when the parent wants something built,
+            it launches a <span class="green">build → check → fix</span> pipeline run (in its own worktree) and
+            gets back a <strong>checked</strong> result — no more agent soup.
+          </li>
+          <li>
+            <strong>Keep plain workers for coordination</strong> — non-build tasks (research, scripts, glue)
+            can still spawn a normal child terminal.
+          </li>
+          <li>
+            <strong>Fold Pipelines into the canvas</strong> — a build run shows as a node under the parent,
+            instead of living in its own tab.
+          </li>
+        </ol>
+      </div>
+
+      <div class="ask">
+        <strong>One thing to confirm:</strong> “building” routes through the pipeline; everything else the parent
+        can still do with a normal worker. Is that the split you want — or should <em>all</em> spawned work go
+        through a pipeline?
+      </div>
+
+      <p class="footer">
+        Reply <strong>“go”</strong> and I’ll build it. Or tell me what’s off and I’ll adjust before writing any code.
+      </p>
+    </div>
+  </body>
+</html>
