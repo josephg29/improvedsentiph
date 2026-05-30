@@ -6,9 +6,9 @@ import { TERMINAL_REGISTRY_VERSION } from "./constants";
 
 import { toErrorMessage } from "./systemClients";
 import type {
+  AgentWorkspaceMode,
   PersistedTerminal,
   PersistedUiState,
-  TentacleWorkspaceMode,
   TerminalLifecycleState,
   TerminalNameOrigin,
   TerminalRegistryDocument,
@@ -35,8 +35,8 @@ const isTerminalLifecycleState = (value: unknown): value is TerminalLifecycleSta
   value === "exited" ||
   value === "stale";
 
-const inferTerminalNameOrigin = (terminalId: string, tentacleName: string): TerminalNameOrigin => {
-  if (tentacleName === terminalId || /^Octogent Terminal \d+$/.test(tentacleName)) {
+const inferTerminalNameOrigin = (terminalId: string, agentName: string): TerminalNameOrigin => {
+  if (agentName === terminalId || /^Sentiph Terminal \d+$/.test(agentName)) {
     return "generated";
   }
 
@@ -121,8 +121,8 @@ const parsePersistedUiState = (value: unknown): PersistedUiState => {
     );
   }
 
-  if (Array.isArray(value.canvasOpenTentacleIds)) {
-    nextState.canvasOpenTentacleIds = value.canvasOpenTentacleIds.filter(
+  if (Array.isArray(value.canvasOpenAgentIds)) {
+    nextState.canvasOpenAgentIds = value.canvasOpenAgentIds.filter(
       (id): id is string => typeof id === "string",
     );
   }
@@ -168,48 +168,48 @@ export const pruneUiStateTerminalReferences = (
 
 /**
  * Migrate a v1/v2 registry document to v3 terminal format.
- * Each old tentacle entry becomes a terminal where terminalId = tentacleId.
+ * Each old agent entry becomes a terminal where terminalId = agentId.
  * Child agents are dropped.
  */
 const migrateV2ToV3 = (
   record: Record<string, unknown>,
   registryPath: string,
 ): Map<string, PersistedTerminal> => {
-  const rawTentacles = record.tentacles;
-  if (!Array.isArray(rawTentacles)) {
-    throw new Error(`Invalid registry tentacles array (${registryPath}).`);
+  const rawAgents = record.agents;
+  if (!Array.isArray(rawAgents)) {
+    throw new Error(`Invalid registry agents array (${registryPath}).`);
   }
 
   const terminals = new Map<string, PersistedTerminal>();
-  for (const item of rawTentacles) {
+  for (const item of rawAgents) {
     if (item === null || typeof item !== "object") {
-      throw new Error(`Invalid tentacle entry in registry (${registryPath}).`);
+      throw new Error(`Invalid agent entry in registry (${registryPath}).`);
     }
 
     const entry = item as Record<string, unknown>;
-    const tentacleId = typeof entry.tentacleId === "string" ? entry.tentacleId : null;
-    const tentacleName = typeof entry.tentacleName === "string" ? entry.tentacleName : null;
+    const agentId = typeof entry.agentId === "string" ? entry.agentId : null;
+    const agentName = typeof entry.agentName === "string" ? entry.agentName : null;
     const createdAt = typeof entry.createdAt === "string" ? entry.createdAt : null;
 
-    if (!tentacleId || !tentacleName || !createdAt) {
-      throw new Error(`Incomplete tentacle entry in registry (${registryPath}).`);
+    if (!agentId || !agentName || !createdAt) {
+      throw new Error(`Incomplete agent entry in registry (${registryPath}).`);
     }
 
     const rawWorkspaceMode = entry.workspaceMode;
-    const workspaceMode: TentacleWorkspaceMode =
+    const workspaceMode: AgentWorkspaceMode =
       rawWorkspaceMode === "worktree" || rawWorkspaceMode === "shared"
         ? rawWorkspaceMode
         : "shared";
 
-    if (terminals.has(tentacleId)) {
-      throw new Error(`Duplicate tentacle id in registry (${registryPath}): ${tentacleId}`);
+    if (terminals.has(agentId)) {
+      throw new Error(`Duplicate agent id in registry (${registryPath}): ${agentId}`);
     }
 
-    terminals.set(tentacleId, {
-      terminalId: tentacleId,
-      tentacleId,
-      tentacleName,
-      nameOrigin: inferTerminalNameOrigin(tentacleId, tentacleName),
+    terminals.set(agentId, {
+      terminalId: agentId,
+      agentId,
+      agentName,
+      nameOrigin: inferTerminalNameOrigin(agentId, agentName),
       createdAt,
       workspaceMode,
     });
@@ -235,16 +235,16 @@ const parseV3Terminals = (
 
     const entry = item as Record<string, unknown>;
     const terminalId = typeof entry.terminalId === "string" ? entry.terminalId : null;
-    const tentacleId = typeof entry.tentacleId === "string" ? entry.tentacleId : null;
-    const tentacleName = typeof entry.tentacleName === "string" ? entry.tentacleName : null;
+    const agentId = typeof entry.agentId === "string" ? entry.agentId : null;
+    const agentName = typeof entry.agentName === "string" ? entry.agentName : null;
     const createdAt = typeof entry.createdAt === "string" ? entry.createdAt : null;
 
-    if (!terminalId || !tentacleId || !tentacleName || !createdAt) {
+    if (!terminalId || !agentId || !agentName || !createdAt) {
       throw new Error(`Incomplete terminal entry in registry (${registryPath}).`);
     }
 
     const rawWorkspaceMode = entry.workspaceMode;
-    const workspaceMode: TentacleWorkspaceMode =
+    const workspaceMode: AgentWorkspaceMode =
       rawWorkspaceMode === "worktree" || rawWorkspaceMode === "shared"
         ? rawWorkspaceMode
         : "shared";
@@ -255,15 +255,23 @@ const parseV3Terminals = (
 
     const terminal: PersistedTerminal = {
       terminalId,
-      tentacleId,
-      tentacleName,
+      agentId,
+      agentName,
       nameOrigin: isTerminalNameOrigin(entry.nameOrigin)
         ? entry.nameOrigin
-        : inferTerminalNameOrigin(terminalId, tentacleName),
+        : inferTerminalNameOrigin(terminalId, agentName),
       createdAt,
       workspaceMode,
     };
     if (typeof entry.worktreeId === "string") terminal.worktreeId = entry.worktreeId;
+    if (entry.model === "opus" || entry.model === "sonnet" || entry.model === "haiku") {
+      terminal.model = entry.model;
+    }
+    if (entry.effort === "low" || entry.effort === "medium" || entry.effort === "high") {
+      terminal.effort = entry.effort;
+    }
+    if (typeof entry.color === "string") terminal.color = entry.color;
+    if (entry.isGroupLeader === true) terminal.isGroupLeader = true;
     if (typeof entry.parentTerminalId === "string")
       terminal.parentTerminalId = entry.parentTerminalId;
     if (isTerminalAgentProvider(entry.agentProvider)) terminal.agentProvider = entry.agentProvider;

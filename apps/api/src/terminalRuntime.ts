@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import type { Duplex } from "node:stream";
 import { fileURLToPath } from "node:url";
 
-import type { TerminalSnapshot } from "@sentiph/core";
+import type { AgentEffort, AgentModel, TerminalSnapshot } from "@sentiph/core";
 import type { WebSocket } from "ws";
 import { WebSocketServer } from "ws";
 
@@ -411,6 +411,10 @@ export const createTerminalRuntime = ({
       agentId: terminal.agentId,
       agentName: terminal.agentName,
       workspaceMode: terminal.workspaceMode,
+      ...(terminal.model ? { model: terminal.model } : {}),
+      ...(terminal.effort ? { effort: terminal.effort } : {}),
+      ...(terminal.color ? { color: terminal.color } : {}),
+      ...(terminal.isGroupLeader ? { isGroupLeader: true } : {}),
       createdAt: terminal.createdAt,
       hasUserPrompt: isTerminalRecentlyActive(terminal),
       ...(terminal.parentTerminalId ? { parentTerminalId: terminal.parentTerminalId } : {}),
@@ -468,6 +472,10 @@ export const createTerminalRuntime = ({
     agentName,
     workspaceMode = "shared",
     agentProvider,
+    model,
+    effort,
+    color,
+    isGroupLeader,
     initialPrompt,
     initialInputDraft,
     baseRef,
@@ -481,6 +489,10 @@ export const createTerminalRuntime = ({
     agentName?: string;
     workspaceMode?: AgentWorkspaceMode;
     agentProvider?: TerminalAgentProvider;
+    model?: AgentModel;
+    effort?: AgentEffort;
+    color?: string;
+    isGroupLeader?: boolean;
     initialPrompt?: string;
     initialInputDraft?: string;
     baseRef?: string;
@@ -533,6 +545,10 @@ export const createTerminalRuntime = ({
       createdAt: new Date().toISOString(),
       workspaceMode,
       agentProvider: agentProvider ?? DEFAULT_AGENT_PROVIDER,
+      ...(model ? { model } : {}),
+      ...(effort ? { effort } : {}),
+      ...(color ? { color } : {}),
+      ...(isGroupLeader ? { isGroupLeader: true } : {}),
       lifecycleState: "registered",
       lifecycleUpdatedAt: new Date().toISOString(),
       ...(initialPrompt ? { initialPrompt } : {}),

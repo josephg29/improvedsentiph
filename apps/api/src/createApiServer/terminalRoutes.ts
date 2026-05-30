@@ -86,6 +86,10 @@ export const handleTerminalsCollectionRoute: ApiRouteHandler = async (
       agentName?: string;
       workspaceMode: AgentWorkspaceMode;
       agentProvider?: TerminalAgentProvider;
+      model?: "opus" | "sonnet" | "haiku";
+      effort?: "low" | "medium" | "high";
+      color?: string;
+      isGroupLeader?: boolean;
       nameOrigin?: TerminalNameOrigin;
       initialPrompt?: string;
       initialInputDraft?: string;
@@ -138,6 +142,34 @@ export const handleTerminalsCollectionRoute: ApiRouteHandler = async (
       bodyPayload.worktreeId.trim().length > 0
     ) {
       createTerminalInput.worktreeId = bodyPayload.worktreeId.trim();
+    }
+
+    // Orchestrator-chosen child settings (model/effort/color/group-leader).
+    if (
+      bodyPayload &&
+      (bodyPayload.model === "opus" ||
+        bodyPayload.model === "sonnet" ||
+        bodyPayload.model === "haiku")
+    ) {
+      createTerminalInput.model = bodyPayload.model;
+    }
+    if (
+      bodyPayload &&
+      (bodyPayload.effort === "low" ||
+        bodyPayload.effort === "medium" ||
+        bodyPayload.effort === "high")
+    ) {
+      createTerminalInput.effort = bodyPayload.effort;
+    }
+    if (
+      bodyPayload &&
+      typeof bodyPayload.color === "string" &&
+      /^#[0-9a-fA-F]{6}$/.test(bodyPayload.color)
+    ) {
+      createTerminalInput.color = bodyPayload.color;
+    }
+    if (bodyPayload && bodyPayload.isGroupLeader === true) {
+      createTerminalInput.isGroupLeader = true;
     }
 
     // Optional raw initial prompt to seed the agent.

@@ -2,15 +2,21 @@ import type { AgentRuntimeState } from "./agentRuntime";
 
 export type AgentState = "live" | "idle" | "queued" | "blocked" | "stopped" | "exited" | "stale";
 export type TerminalLifecycleState = "registered" | "running" | "stopped" | "exited" | "stale";
-export type TentacleWorkspaceMode = "shared" | "worktree";
+export type AgentWorkspaceMode = "shared" | "worktree";
+export type AgentModel = "opus" | "sonnet" | "haiku";
+export type AgentEffort = "low" | "medium" | "high";
 
 export type TerminalSnapshot = {
   terminalId: string;
   label: string;
   state: AgentState;
-  tentacleId: string;
-  tentacleName?: string;
-  workspaceMode?: TentacleWorkspaceMode;
+  agentId: string;
+  agentName?: string;
+  workspaceMode?: AgentWorkspaceMode;
+  model?: AgentModel;
+  effort?: AgentEffort;
+  color?: string;
+  isGroupLeader?: boolean;
   createdAt: string;
   hasUserPrompt?: boolean;
   parentTerminalId?: string;

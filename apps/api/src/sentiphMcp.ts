@@ -50,12 +50,28 @@ const TOOL_DEFINITIONS: ToolDef[] = [
   {
     name: "spawn_terminal",
     description:
-      "Spawn a plain child Claude Code agent for READ-ONLY / exploratory work where there is no code artifact to check (research, looking something up, summarizing logs, a quick throwaway script). Full toolset: Bash, Read, Write, Edit, Grep, Glob, WebFetch. Phrase the prompt as a natural-language task. For code changes, use build instead.",
+      "Spawn a plain child Claude Code agent for READ-ONLY / exploratory work where there is no code artifact to check (research, looking something up, summarizing logs, a quick throwaway script). Full toolset: Bash, Read, Write, Edit, Grep, Glob, WebFetch. Phrase the prompt as a natural-language task. Pick model and effort to fit the task (cheap haiku/low for mechanical work; sonnet/medium for normal work; opus/high only when it earns it). For code changes, use build instead.",
     inputSchema: {
       type: "object",
       properties: {
         prompt: { type: "string", description: "Natural-language task for the child agent." },
         name: { type: "string", description: "Short display name shown on the canvas." },
+        model: {
+          enum: ["opus", "sonnet", "haiku"],
+          description:
+            "Model for the child. haiku = cheap/fast/mechanical; sonnet = default coding; opus = deep reasoning.",
+        },
+        effort: {
+          enum: ["low", "medium", "high"],
+          description:
+            "How much planning the task rewards. low = mechanical; medium = typical; high = ambiguous/complex (slower).",
+        },
+        color: { type: "string", description: "Hex color (#rrggbb) for the node on the canvas." },
+        group_leader: {
+          type: "boolean",
+          description:
+            "Spawn as a group leader: it gets these same orchestration tools so it can run its own sub-batch of workers. Use when you need more than 9 total workers.",
+        },
       },
       required: ["prompt"],
     },
@@ -199,6 +215,18 @@ const handleToolCall = async (name: string, args: Record<string, unknown>): Prom
     }
     if (typeof args.name === "string" && args.name.trim()) {
       body.name = args.name.trim();
+    }
+    if (args.model === "opus" || args.model === "sonnet" || args.model === "haiku") {
+      body.model = args.model;
+    }
+    if (args.effort === "low" || args.effort === "medium" || args.effort === "high") {
+      body.effort = args.effort;
+    }
+    if (typeof args.color === "string" && /^#[0-9a-fA-F]{6}$/.test(args.color)) {
+      body.color = args.color;
+    }
+    if (args.group_leader === true) {
+      body.isGroupLeader = true;
     }
     const res = await fetch(`${apiOrigin}/api/terminals`, {
       method: "POST",

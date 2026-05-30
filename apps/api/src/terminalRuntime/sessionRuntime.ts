@@ -482,19 +482,32 @@ export const createSessionRuntime = ({
       TERMINAL_BOOTSTRAP_COMMANDS[provider] ?? TERMINAL_BOOTSTRAP_COMMANDS[DEFAULT_AGENT_PROVIDER];
 
     // A top-level (no-parent) Claude Code terminal is an orchestrator: it launches
-    // with the Sentiph MCP tools and the orchestrator system prompt. Children
-    // (spawned via the MCP) and other providers keep the plain bootstrap, so the
-    // interactive worker path is unchanged.
+    // with the Sentiph MCP tools and the orchestrator system prompt. Group leaders
+    // (children that orchestrate their own sub-batch) also get the MCP tools. Plain
+    // children keep the bare bootstrap, so the interactive worker path is unchanged.
+    // model/effort apply to whatever the orchestrator chose for the child.
     let bootstrapCommand = baseCommand;
-    const isOrchestrator = provider === "claude-code" && !terminal?.parentTerminalId;
-    if (isOrchestrator && sentiphMcpConfigPath) {
-      const flags = [`--mcp-config "${sentiphMcpConfigPath}"`];
-      if (sentiphSystemPromptPath) {
+    if (provider === "claude-code") {
+      const flags: string[] = [];
+      if (terminal?.model) {
+        flags.push(`--model ${terminal.model}`);
+      }
+      if (terminal?.effort) {
+        flags.push(`--effort ${terminal.effort}`);
+      }
+      const isOrchestrator = !terminal?.parentTerminalId;
+      const isGroupLeader = terminal?.isGroupLeader === true;
+      if ((isOrchestrator || isGroupLeader) && sentiphMcpConfigPath) {
+        flags.push(`--mcp-config "${sentiphMcpConfigPath}"`);
+      }
+      if (isOrchestrator && sentiphSystemPromptPath) {
         // The prompt file is authored to avoid bash double-quote special chars
         // (verified at write time), so the substitution is safe.
         flags.push(`--append-system-prompt "$(cat "${sentiphSystemPromptPath}")"`);
       }
-      bootstrapCommand = `${baseCommand} ${flags.join(" ")}`;
+      if (flags.length > 0) {
+        bootstrapCommand = `${baseCommand} ${flags.join(" ")}`;
+      }
     }
 
     appendDebugLog(session, `bootstrap session=${sessionId} command=${bootstrapCommand}`);

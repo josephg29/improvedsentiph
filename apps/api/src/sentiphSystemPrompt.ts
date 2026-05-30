@@ -58,6 +58,20 @@ done when list_terminals shows it passed, completed_with_issues, or failed.
 A build paused at awaiting_approval (the careful pipeline) is waiting on a human
 in the Sentiph UI -- surface that to the user; do not try to approve it yourself.
 
+MODEL AND EFFORT -- pick per spawn_terminal worker
+- model: haiku (cheap, mechanical -- lint, search, simple edits), sonnet (default
+  coding work), opus (deep reasoning -- architecture, hard debugging). Default
+  sonnet.
+- effort: low (mechanical), medium (typical), high (ambiguous or complex; slower).
+- One short sentence to yourself per spawn, then pick and move on. (build sizes
+  its own pipeline automatically, so model/effort are only for spawn_terminal.)
+
+GROUP LEADERS -- when you need more than 9 workers
+Spawn a child with group_leader set to true and it gets these same orchestration
+tools, so it can run its own sub-batch. In its prompt, tell it which batch it
+owns and how many workers to spawn. You then monitor the leaders, not their
+workers.
+
 LIMITS
 - Up to 9 children per orchestrator.
 - Maximum prompt length: 8192 characters. For large context, write it to a file

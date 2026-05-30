@@ -1,15 +1,17 @@
 import type { WriteStream } from "node:fs";
 
 import type {
+  AgentEffort,
+  AgentGitStatusSnapshot,
+  AgentModel,
+  AgentPullRequestSnapshot,
+  AgentWorkspaceMode,
   ChannelMessage,
   PersistedUiState,
-  TentacleGitStatusSnapshot,
-  TentaclePullRequestSnapshot,
-  TentacleWorkspaceMode,
   TerminalAgentProvider,
   TerminalLifecycleState,
-} from "@octogent/core";
-import { isTerminalAgentProvider, isTerminalCompletionSoundId } from "@octogent/core";
+} from "@sentiph/core";
+import { isTerminalAgentProvider, isTerminalCompletionSoundId } from "@sentiph/core";
 import type { IPty } from "node-pty";
 import type { WebSocket } from "ws";
 
@@ -33,7 +35,7 @@ export type TerminalHistoryMessage = {
 
 export type TerminalRenameMessage = {
   type: "rename";
-  tentacleName: string;
+  agentName: string;
 };
 
 export type TerminalActivityMessage = {
@@ -55,7 +57,7 @@ export type Disposable = {
 
 export type TerminalSession = {
   terminalId: string;
-  tentacleId: string;
+  agentId: string;
   pty: IPty;
   ptyDisposables?: Disposable[];
   clients: Set<WebSocket>;
@@ -90,9 +92,9 @@ export type TerminalNameOrigin = "generated" | "user" | "prompt";
 export {
   type ChannelMessage,
   type PersistedUiState,
-  type TentacleGitStatusSnapshot,
-  type TentaclePullRequestSnapshot,
-  type TentacleWorkspaceMode,
+  type AgentGitStatusSnapshot,
+  type AgentPullRequestSnapshot,
+  type AgentWorkspaceMode,
   type TerminalAgentProvider,
   type TerminalLifecycleState,
   isTerminalAgentProvider,
@@ -119,14 +121,18 @@ export type TerminalSessionEndDetails = {
 
 export type PersistedTerminal = {
   terminalId: string;
-  tentacleId: string;
+  agentId: string;
   worktreeId?: string;
-  tentacleName: string;
+  agentName: string;
   nameOrigin?: TerminalNameOrigin;
   autoRenamePromptContext?: string | undefined;
   createdAt: string;
-  workspaceMode: TentacleWorkspaceMode;
+  workspaceMode: AgentWorkspaceMode;
   agentProvider?: TerminalAgentProvider;
+  model?: AgentModel;
+  effort?: AgentEffort;
+  color?: string;
+  isGroupLeader?: boolean;
   initialPrompt?: string;
   initialInputDraft?: string;
   lastActiveAt?: string;
@@ -142,8 +148,8 @@ export type PersistedTerminal = {
 };
 
 export type GitClientPullRequestSnapshot = Omit<
-  TentaclePullRequestSnapshot,
-  "tentacleId" | "workspaceMode" | "status"
+  AgentPullRequestSnapshot,
+  "agentId" | "workspaceMode" | "status"
 > & {
   state: "OPEN" | "MERGED" | "CLOSED";
 };
@@ -162,7 +168,7 @@ export type GitClient = {
   removeBranch(options: { cwd: string; branchName: string }): void;
   readWorktreeStatus(options: {
     cwd: string;
-  }): Omit<TentacleGitStatusSnapshot, "tentacleId" | "workspaceMode">;
+  }): Omit<AgentGitStatusSnapshot, "agentId" | "workspaceMode">;
   commitAll(options: { cwd: string; message: string }): void;
   pushCurrentBranch(options: { cwd: string }): void;
   syncWithBase(options: { cwd: string; baseRef: string }): void;
