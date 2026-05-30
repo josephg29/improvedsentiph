@@ -1,20 +1,15 @@
-import type {
-  AgentRuntimeState,
-  AgentState,
-  DeckOctopusAppearance,
-  TentacleWorkspaceMode,
-} from "@octogent/core";
+import type { AgentRuntimeState, AgentState, AgentWorkspaceMode, RunStatus } from "@sentiph/core";
 
 export type GraphNode = {
   id: string;
-  type: "tentacle" | "octoboss" | "active-session" | "inactive-session";
+  type: "hub" | "active-session" | "build";
   x: number;
   y: number;
   vx: number;
   vy: number;
   pinned: boolean;
   radius: number;
-  tentacleId: string;
+  agentId: string;
   label: string;
   color: string;
   sessionId?: string;
@@ -22,10 +17,10 @@ export type GraphNode = {
   agentRuntimeState?: AgentRuntimeState;
   waitingToolName?: string;
   hasUserPrompt?: boolean;
-  workspaceMode?: TentacleWorkspaceMode;
+  workspaceMode?: AgentWorkspaceMode;
   parentTerminalId?: string;
-  firstPromptPreview?: string;
-  octopus?: DeckOctopusAppearance;
+  runId?: string;
+  runStatus?: RunStatus;
 };
 
 export type GraphEdge = {

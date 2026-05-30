@@ -486,138 +486,16 @@
   color: #888888;
 }
 
-/* ── Builds overlay (on the orchestration canvas) ──────────────── */
+/* ── Build nodes on the canvas ─────────────────────────────────── */
 
-.builds-overlay {
-  position: fixed;
-  right: 14px;
-  bottom: 14px;
-  z-index: 20;
-  width: min(340px, calc(100vw - 28px));
-  max-height: min(60vh, 520px);
-  display: flex;
-  flex-direction: column;
-  background: #f4f4f4;
-  border: 1px solid #cfcfcf;
-  border-radius: 10px;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.14);
-  font-family: var(--font-main);
-  overflow: hidden;
+.canvas-build-core--pulse {
+  animation: pipeline-pulse 1.1s ease-in-out infinite;
 }
 
-.builds-overlay-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.5rem 0.72rem;
-  border-bottom: 1px solid #dddddd;
-  background: #ececec;
+.canvas-build-action:hover rect {
+  filter: brightness(0.88);
 }
 
-.builds-overlay-title {
-  font-size: 0.72rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #111111;
-}
-
-.builds-overlay-count {
-  font-size: 0.66rem;
-  color: #fafafa;
-  background: #111111;
-  border-radius: 999px;
-  padding: 0.04rem 0.46rem;
-}
-
-.builds-overlay-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  overflow-y: auto;
-}
-
-.builds-overlay-item {
-  border-bottom: 1px solid #e6e6e6;
-  padding: 0.2rem 0;
-}
-
-.builds-overlay-row {
-  all: unset;
-  box-sizing: border-box;
-  cursor: pointer;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 0.48rem;
-  padding: 0.42rem 0.72rem;
-}
-
-.builds-overlay-row:hover {
-  background: #ececec;
-}
-
-.builds-overlay-row[data-selected="true"] {
-  background: #e3e3e3;
-}
-
-.builds-overlay-task {
-  flex: 1;
-  min-width: 0;
-  font-size: 0.74rem;
-  color: #111111;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.builds-overlay-parent {
-  display: block;
-  padding: 0 0.72rem 0.28rem;
-  font-size: 0.66rem;
-  color: #888888;
-}
-
-.builds-overlay-detail {
-  padding: 0.1rem 0.72rem 0.56rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.42rem;
-}
-
-.builds-overlay-actions {
-  display: inline-flex;
-  gap: 0.42rem;
-}
-
-.builds-overlay-approve,
-.builds-overlay-cancel {
-  all: unset;
-  cursor: pointer;
-  padding: 0.2rem 0.56rem;
-  font-size: 0.66rem;
-  letter-spacing: 0.05em;
-  border-radius: 5px;
-}
-
-.builds-overlay-approve {
-  color: #fafafa;
-  background: var(--term-green);
-  border: 1px solid var(--term-green);
-}
-
-.builds-overlay-cancel {
-  color: var(--term-red);
-  border: 1px solid var(--term-red);
-}
-
-.builds-overlay-cancel:hover {
-  color: #fafafa;
-  background: var(--term-red);
-}
-
-.builds-overlay-summary {
-  margin: 0;
-  font-size: 0.72rem;
-  color: #444444;
-  line-height: 1.4;
+.canvas-node--build {
+  user-select: none;
 }

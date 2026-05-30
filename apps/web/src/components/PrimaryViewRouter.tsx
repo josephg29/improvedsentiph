@@ -4,7 +4,6 @@ import type { PrimaryNavIndex } from "../app/constants";
 import { ActivityPrimaryView } from "./ActivityPrimaryView";
 import { CanvasPrimaryView } from "./CanvasPrimaryView";
 import { SettingsPrimaryView } from "./SettingsPrimaryView";
-import { BuildsOverlay } from "./canvas/BuildsOverlay";
 
 type PrimaryViewRouterProps = {
   activePrimaryNav: PrimaryNavIndex;
@@ -15,8 +14,8 @@ type PrimaryViewRouterProps = {
 
 // The Agents canvas (1) stays mounted behind the active view so terminal
 // WebSocket/xterm instances survive nav switches; Activity (3) and Settings (8)
-// render on top when selected. Pipeline builds float over the canvas as the
-// orchestrator's work (no separate tab).
+// render on top when selected. Pipeline builds render as worker nodes on the
+// canvas itself (no separate tab, no overlay).
 const OVERLAY_NAVS = new Set<PrimaryNavIndex>([3, 8]);
 const isCanvasNav = (nav: PrimaryNavIndex) => !OVERLAY_NAVS.has(nav);
 
@@ -36,8 +35,6 @@ export const PrimaryViewRouter = ({
       >
         <CanvasPrimaryView {...canvasPrimaryViewProps} />
       </div>
-
-      {canvasActive && <BuildsOverlay />}
 
       {activePrimaryNav === 3 && <ActivityPrimaryView {...activityPrimaryViewProps} />}
 

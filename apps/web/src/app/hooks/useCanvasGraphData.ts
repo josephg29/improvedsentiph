@@ -42,6 +42,7 @@ type UseCanvasGraphDataOptions = {
   columns: TerminalView;
   enabled?: boolean;
   agentRuntimeStates?: Map<string, AgentRuntimeStateInfo>;
+  runs?: BuildRunInput[];
 };
 
 type UseCanvasGraphDataResult = {
@@ -50,7 +51,35 @@ type UseCanvasGraphDataResult = {
   refresh: () => Promise<void>;
 };
 
+export type BuildRunInput = {
+  runId: string;
+  status: import("@sentiph/core").RunStatus;
+  task: string;
+  parentTerminalId?: string;
+};
+
+const BUILD_NODE_RADIUS = 10;
+
 const buildActiveSessionNodeId = (terminalId: string) => `a:${terminalId}`;
+const buildRunNodeId = (runId: string) => `b:${runId}`;
+
+const runStatusColor = (status: BuildRunInput["status"]): string => {
+  switch (status) {
+    case "passed":
+      return "#25a244";
+    case "failed":
+      return "#880f1e";
+    case "completed_with_issues":
+    case "awaiting_approval":
+      return "#b87000";
+    case "building":
+    case "checking":
+    case "fixing":
+      return "#1e59a3";
+    default:
+      return "#9ca3af";
+  }
+};
 
 // Builds the canvas graph: a single always-present "hub" node with one
 // color-coded circle per active agent/session. Swarm children link to their
@@ -58,6 +87,7 @@ const buildActiveSessionNodeId = (terminalId: string) => `a:${terminalId}`;
 export const useCanvasGraphData = ({
   columns,
   agentRuntimeStates,
+  runs,
 }: UseCanvasGraphDataOptions): UseCanvasGraphDataResult => {
   const prevNodesRef = useRef<Map<string, GraphNode>>(new Map());
   const prevNodes = prevNodesRef.current;
@@ -117,6 +147,36 @@ export const useCanvasGraphData = ({
     nodes.push(sessionNode);
     currentNodesById.set(sessionNodeId, sessionNode);
     edges.push({ source: parentNodeId, target: sessionNodeId });
+  }
+
+  // Pipeline builds: a worker run (build → check → fix) under its orchestrator.
+  for (const run of runs ?? []) {
+    const runNodeId = buildRunNodeId(run.runId);
+    const parentNodeId = run.parentTerminalId
+      ? buildActiveSessionNodeId(run.parentTerminalId)
+      : HUB_NODE_ID;
+    const parentNode = currentNodesById.get(parentNodeId) ?? hubNode;
+    const prev = prevNodes.get(runNodeId);
+    const jitter = () => (Math.random() - 0.5) * 60;
+    const buildNode: GraphNode = {
+      id: runNodeId,
+      type: "build",
+      x: prev?.x ?? parentNode.x + jitter(),
+      y: prev?.y ?? parentNode.y + jitter(),
+      vx: prev?.vx ?? 0,
+      vy: prev?.vy ?? 0,
+      pinned: prev?.pinned ?? false,
+      radius: BUILD_NODE_RADIUS,
+      agentId: run.runId,
+      label: run.task,
+      color: runStatusColor(run.status),
+      runId: run.runId,
+      runStatus: run.status,
+      ...(run.parentTerminalId ? { parentTerminalId: run.parentTerminalId } : {}),
+    };
+    nodes.push(buildNode);
+    currentNodesById.set(runNodeId, buildNode);
+    edges.push({ source: parentNodeId, target: runNodeId });
   }
 
   const nextMap = new Map<string, GraphNode>();
