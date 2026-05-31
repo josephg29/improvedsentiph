@@ -2,21 +2,21 @@
 
 # sentiph
 
-<strong>Launch and watch many Claude Code agents from one local canvas.</strong>
+<strong>Orchestrate Claude Code sessions from a live canvas.</strong>
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-22+-5FA04E?style=flat-square&logo=node.js&logoColor=white)](https://nodejs.org/)
 
 </div>
 
-`sentiph` is a local dashboard for running several Claude Code agents side by side. Each agent shows up as a color-coded circle on a live canvas. One developer can start, watch, steer, and pipeline multiple coding sessions at once.
+`sentiph` is a local runtime for orchestrating Claude Code agents. You start sessions, assign them work, connect them into pipelines, and watch them coordinate — all from a single canvas. The key idea is that agents can direct other agents: an orchestrator spawns workers, delegates tasks, monitors progress, and passes messages between sessions without you manually switching terminals.
 
 ## What it does
 
-- **Live agent canvas.** Each agent is a node on a physics-simulated canvas. Start a shared-workspace agent or an isolated worktree agent. One orchestrator agent can spawn child workers, assign them tasks, and pass short messages between them.
-- **Deterministic build pipelines.** Trigger a `build → check → fix` pipeline run directly from the canvas. Each run spawns a dedicated worker node with an animated stage strip so you can watch the pipeline progress in real time — build passes, checks glow, fixes retry.
-- **Model and effort control.** Choose the Claude model and effort level when creating any agent through the canvas dialog.
-- **Activity.** A page that surfaces recent git activity alongside Claude and Codex token usage, with a live commit sparkline in the status strip.
+- **Orchestration canvas.** Each Claude Code session is a node on a physics-simulated canvas. An orchestrator agent can spawn child workers, assign them tasks via the inter-agent message channel, and receive their results — forming a live graph of coordinated sessions. Workers can themselves spawn sub-workers, so the canvas reflects the actual delegation tree as it grows.
+- **Deterministic build pipelines.** Trigger a `build → check → fix` pipeline run directly from the canvas. Each run spawns a dedicated worker node whose stage strip animates in real time — build passes, checks highlight issues, fixes retry automatically, and the result surfaces back to the orchestrator.
+- **Model and effort control.** Choose the Claude model and effort level per agent when creating a session through the canvas dialog.
+- **Activity.** Surfaces recent git commits alongside Claude and Codex token usage, with a live commit sparkline in the status strip.
 - **Settings.** Configure completion sounds, surface visibility (status strip, X Monitor, telemetry tape), and other workspace preferences.
 
 ## Quick start
