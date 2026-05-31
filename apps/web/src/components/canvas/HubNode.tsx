@@ -1,6 +1,10 @@
 import type { PointerEvent } from "react";
 
 import type { GraphNode } from "../../app/canvas/types";
+import { WellCircle } from "./WellCircle";
+
+// The hub renders as a small neutral-grey dot that the agent wells fan out from.
+const HUB_CORE_COLOR = "#8a9098";
 
 type HubNodeProps = {
   node: GraphNode;
@@ -130,8 +134,8 @@ export const HubNode = ({
       }}
       style={{ cursor: "grab" }}
     >
-      {/* Invisible hit area */}
-      <circle r={node.radius + 4} fill="transparent" />
+      {/* Invisible hit area — kept comfortably grabbable even as the dot shrinks */}
+      <circle r={Math.max(node.radius + 6, 16)} fill="transparent" />
 
       {/* Edges to connected agent nodes */}
       {connectedNodes.map((target) => {
@@ -148,23 +152,28 @@ export const HubNode = ({
               strokeOpacity={1}
             />
             {isEdgeActivityVisible(target)
-              ? renderEdgeActivityDots(path, active ? (selectedNodeColor ?? color) : color, target.id)
+              ? renderEdgeActivityDots(
+                  path,
+                  active ? (selectedNodeColor ?? color) : color,
+                  target.id,
+                )
               : null}
           </g>
         );
       })}
 
       {isSelected && (
-        <circle className="canvas-node-focus-glow" r={node.radius + 12} fill="#ffffff" />
+        <circle className="canvas-node-focus-glow" r={node.radius + 10} fill="#ffffff" />
       )}
-      <circle className="canvas-node-bloom" r={node.radius + 3} fill={color} opacity={0.22} />
-      <circle className="canvas-node-core" r={node.radius} fill={color} />
+
+      {/* Small grey "well" dot */}
+      <WellCircle radius={node.radius} coreColor={HUB_CORE_COLOR} />
 
       <text
-        y={node.radius + 18}
+        y={node.radius + 16}
         textAnchor="middle"
         className="canvas-node-label canvas-node-label--always"
-        fill="var(--accent-primary, #111)"
+        fill="#3a3a3a"
       >
         <tspan x="0" dy="0">
           {node.label}

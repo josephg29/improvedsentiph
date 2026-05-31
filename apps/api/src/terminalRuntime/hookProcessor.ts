@@ -7,18 +7,69 @@ import { storeClaudeTranscriptTurns } from "./conversations";
 import { broadcastMessage } from "./protocol";
 import type { PersistedTerminal, TerminalSession } from "./types";
 
-const MAX_AUTO_NAME_LENGTH = 50;
+// The top-level orchestrator is always shown as "sentiph" rather than echoing
+// its first prompt.
+const ROOT_AGENT_NAME = "sentiph";
+const MAX_SHORT_NAME_LENGTH = 14;
 
-const deriveTerminalNameFromPrompt = (prompt: string): string => {
-  const normalized = prompt.replace(/\s+/g, " ").trim();
-  if (normalized.length <= MAX_AUTO_NAME_LENGTH) {
-    return normalized;
+// Filler words skipped when picking the first meaningful word of a task prompt.
+const NAME_STOPWORDS = new Set([
+  "the",
+  "a",
+  "an",
+  "and",
+  "or",
+  "to",
+  "of",
+  "for",
+  "in",
+  "on",
+  "into",
+  "with",
+  "this",
+  "that",
+  "my",
+  "our",
+  "your",
+  "please",
+  "can",
+  "could",
+  "would",
+  "is",
+  "i",
+  "we",
+  "you",
+  "help",
+  "let",
+  "lets",
+  "then",
+  "from",
+  "by",
+  "at",
+  "make",
+]);
+
+// Short, human-friendly worker names derived from the first meaningful word of
+// the task prompt (e.g. "research the auth flow" → "research"). Collisions get a
+// numeric suffix ("research", "research2"), so canvas labels stay readable
+// instead of repeating the whole prompt.
+const deriveShortAgentName = (prompt: string, existingNames: Set<string>): string => {
+  const words = prompt
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
+  const base =
+    words.find((word) => word.length >= 3 && !NAME_STOPWORDS.has(word)) ?? words[0] ?? "agent";
+  const root = base.slice(0, MAX_SHORT_NAME_LENGTH);
+
+  let candidate = root;
+  let suffix = 2;
+  while (existingNames.has(candidate)) {
+    candidate = `${root}${suffix}`;
+    suffix += 1;
   }
-
-  // Truncate at the last space before the limit to avoid cutting mid-word.
-  const truncated = normalized.slice(0, MAX_AUTO_NAME_LENGTH);
-  const lastSpace = truncated.lastIndexOf(" ");
-  return lastSpace > 0 ? `${truncated.slice(0, lastSpace)}…` : `${truncated}…`;
+  return candidate;
 };
 
 export const createHookProcessor = (deps: {
@@ -191,9 +242,7 @@ export const createHookProcessor = (deps: {
     payload: unknown,
     sentiphSessionId?: string,
   ): { ok: boolean } => {
-    logVerbose(
-      `[Hook] Received hook: ${hookName} sentiphSession=${sentiphSessionId ?? "(none)"}`,
-    );
+    logVerbose(`[Hook] Received hook: ${hookName} sentiphSession=${sentiphSessionId ?? "(none)"}`);
 
     if (!payload || typeof payload !== "object") {
       return { ok: true };
@@ -293,13 +342,30 @@ export const createHookProcessor = (deps: {
         broadcastMessage(activitySession, { type: "activity" });
       }
 
-      // Auto-name the terminal from the first prompt when it still has its default name.
+      // Auto-name the terminal on its first prompt while it still has a default
+      // name: the top-level orchestrator becomes "sentiph"; every spawned worker
+      // gets a short slug from its task (research, research2, parser, builder…).
       if (terminal.nameOrigin === "generated") {
         const prompt =
           typeof hookPayloadRecord.prompt === "string" ? hookPayloadRecord.prompt.trim() : "";
         const renameContext = terminal.autoRenamePromptContext?.trim() || prompt;
         if (renameContext.length > 0) {
-          const derived = deriveTerminalNameFromPrompt(renameContext);
+          const isTopLevel = !terminal.parentTerminalId;
+          const sentiphExists = [...terminals.values()].some(
+            (other) =>
+              other.terminalId !== terminal.terminalId && other.agentName === ROOT_AGENT_NAME,
+          );
+          let derived: string;
+          if (isTopLevel && !sentiphExists) {
+            derived = ROOT_AGENT_NAME;
+          } else {
+            const existingNames = new Set(
+              [...terminals.values()]
+                .filter((other) => other.terminalId !== terminal.terminalId)
+                .map((other) => other.agentName),
+            );
+            derived = deriveShortAgentName(renameContext, existingNames);
+          }
           terminal.agentName = derived;
           terminal.nameOrigin = "prompt";
           terminal.autoRenamePromptContext = undefined;

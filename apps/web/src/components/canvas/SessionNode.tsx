@@ -1,6 +1,14 @@
 import { useMemo } from "react";
 
 import type { GraphNode } from "../../app/canvas/types";
+import { WellCircle } from "./WellCircle";
+
+// Neutral greys keep every resting node monochrome (the dark-well look) so
+// state colors (amber/white) read clearly on top.
+const WELL_CORE_ACTIVE = "#161616";
+const WELL_CORE_INACTIVE = "#9ca3af";
+const WELL_STATE_ATTENTION = "#f59e0b";
+const RING_NEUTRAL = "#9aa0a6";
 
 const LINE_MAX = 24;
 const PILL_HEIGHT = 16;
@@ -51,7 +59,12 @@ export const SessionNode = ({ node, isSelected, onPointerDown, onClick }: Sessio
     node.agentRuntimeState === "waiting_for_user";
   const isLifecycleAttention =
     node.agentState === "stale" || node.agentState === "exited" || node.agentState === "stopped";
-  const color = isActive ? node.color : "#9ca3af";
+  const isAttention = isWaiting || isLifecycleAttention;
+  const coreColor = isAttention
+    ? WELL_STATE_ATTENTION
+    : isActive
+      ? WELL_CORE_ACTIVE
+      : WELL_CORE_INACTIVE;
   const isWorktree = node.workspaceMode === "worktree" && !node.parentTerminalId;
   const isSwarmWorker = !!node.parentTerminalId;
   const lines = useMemo(() => splitLabel(node.label), [node.label]);
@@ -105,53 +118,37 @@ export const SessionNode = ({ node, isSelected, onPointerDown, onClick }: Sessio
       {isWorktree && (
         <circle
           className="canvas-node-ring canvas-node-ring--worktree"
-          r={node.radius + 6}
+          r={node.radius + 12}
           fill="none"
-          stroke={color}
+          stroke={RING_NEUTRAL}
         />
       )}
 
-      {/* Swarm worker ring — double concentric circles */}
+      {/* Swarm worker ring — extra concentric circle */}
       {isSwarmWorker && (
-        <>
-          <circle
-            className="canvas-node-ring canvas-node-ring--swarm"
-            r={node.radius + 5}
-            fill="none"
-            stroke={color}
-          />
-          <circle
-            className="canvas-node-ring canvas-node-ring--swarm-outer"
-            r={node.radius + 9}
-            fill="none"
-            stroke={color}
-          />
-        </>
+        <circle
+          className="canvas-node-ring canvas-node-ring--swarm-outer"
+          r={node.radius + 13}
+          fill="none"
+          stroke={RING_NEUTRAL}
+        />
       )}
 
       {/* Focused shine — accent glow when waiting, white otherwise */}
       {isSelected && (
         <circle
           className="canvas-node-focus-glow"
-          r={node.radius + 12}
-          fill={isWaiting || isLifecycleAttention ? "#f59e0b" : "#ffffff"}
+          r={node.radius + 14}
+          fill={isAttention ? WELL_STATE_ATTENTION : "#ffffff"}
         />
       )}
 
-      {/* Subtle glow halo — accent when waiting */}
-      <circle
-        className={`canvas-node-bloom${isLive || isWaiting || isLifecycleAttention ? " canvas-node-bloom--pulse" : ""}`}
-        r={node.radius + 3}
-        fill={isWaiting || isLifecycleAttention ? "#f59e0b" : color}
-        opacity={isWaiting || isLifecycleAttention ? 0.45 : isActive ? 0.25 : 0.1}
-      />
-
-      {/* Bright core dot — accent when waiting */}
-      <circle
-        className="canvas-node-core"
-        r={node.radius}
-        fill={isWaiting || isLifecycleAttention ? "#f59e0b" : color}
-        opacity={isActive ? 1 : 0.4}
+      {/* Dark "well" body — solid core inside soft concentric grey rings */}
+      <WellCircle
+        radius={node.radius}
+        coreColor={coreColor}
+        coreOpacity={isActive ? 1 : 0.8}
+        coreClassName={isLive ? "canvas-well-core--live" : ""}
       />
 
       {/* State indicator pill */}
@@ -180,7 +177,7 @@ export const SessionNode = ({ node, isSelected, onPointerDown, onClick }: Sessio
         y={node.radius + 16 + labelYOffset}
         textAnchor="middle"
         className="canvas-node-label canvas-node-label--session canvas-node-label--always"
-        fill="var(--accent-primary)"
+        fill="#3a3a3a"
       >
         <tspan x="0" dy="0">
           {lines[0]}

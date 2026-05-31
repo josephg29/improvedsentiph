@@ -119,6 +119,42 @@
   r: attr(r + 2);
 }
 
+/* ─── Well node body (solid dark core inside soft grey rings) ──────────────── */
+
+.canvas-well-halo {
+  pointer-events: none;
+  opacity: 0.16;
+  filter: blur(2.5px);
+}
+
+.canvas-well-ring {
+  pointer-events: none;
+}
+
+.canvas-well-ring--outer {
+  stroke-width: 1.25;
+  opacity: 0.3;
+}
+
+.canvas-well-ring--inner {
+  stroke-width: 1.5;
+  opacity: 0.55;
+}
+
+.canvas-well-core--live {
+  animation: canvas-well-core-pulse 2.6s ease-in-out infinite;
+}
+
+@keyframes canvas-well-core-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.72;
+  }
+}
+
 /* ─── Node type rings (worktree / swarm) ─────────────────────────────────── */
 
 .canvas-node-ring {

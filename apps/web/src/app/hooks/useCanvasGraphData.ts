@@ -5,15 +5,12 @@ import type { TerminalView } from "../types";
 import type { AgentRuntimeStateInfo } from "./useAgentRuntimeStates";
 
 const ACTIVE_SESSION_RADIUS = 12;
-const HUB_RADIUS = 52;
+// Small central dot the agent wells fan out from (matches the reference canvas).
+const HUB_RADIUS = 7;
+const HUB_COLOR = "#8a9098";
 
 export const HUB_ID = "__hub__";
 const HUB_NODE_ID = `a:${HUB_ID}`;
-
-const getAccentPrimary = (): string =>
-  (typeof document !== "undefined"
-    ? getComputedStyle(document.documentElement).getPropertyValue("--accent-primary").trim()
-    : "") || "#111";
 
 // Stable per-agent colors so each session circle reads as its own node.
 const AGENT_COLORS = [
@@ -109,7 +106,7 @@ export const useCanvasGraphData = ({
     radius: HUB_RADIUS,
     agentId: HUB_ID,
     label: "sentiph",
-    color: getAccentPrimary(),
+    color: HUB_COLOR,
   };
   nodes.push(hubNode);
   currentNodesById.set(HUB_NODE_ID, hubNode);
