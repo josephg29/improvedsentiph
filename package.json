@@ -21,6 +21,9 @@
     "lint": "biome check .",
     "format": "biome format --write ."
   },
+  "pnpm": {
+    "onlyBuiltDependencies": ["@biomejs/biome", "esbuild", "node-pty"]
+  },
   "dependencies": {
     "node-pty": "^1.1.0",
     "ws": "^8.19.0"
