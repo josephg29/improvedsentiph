@@ -3,54 +3,58 @@ import { describe, expect, it } from "vitest";
 
 import { WellCircle } from "../src/components/canvas/WellCircle";
 
+// WellCircle is the shared "well" body rendered by both HubNode and SessionNode,
+// so its structure (halo + two concentric rings + solid core) is load-bearing
+// for the canvas look. These assert the rendered SVG and that the caller's
+// colors / opacity / extra class reach the core.
+const renderWell = (props: Parameters<typeof WellCircle>[0]) =>
+  render(
+    <svg>
+      <title>canvas</title>
+      <WellCircle {...props} />
+    </svg>,
+  );
+
 describe("WellCircle", () => {
-  it("renders a recessed well with a gradient fill", () => {
-    const { container } = render(
-      <svg>
-        <title>canvas</title>
-        <WellCircle radius={20} />
-      </svg>,
-    );
+  it("renders a halo, two concentric rings, and a core sized to the radius", () => {
+    const { container } = renderWell({ radius: 20, coreColor: "#161616" });
 
-    const gradient = container.querySelector("radialGradient");
-    expect(gradient).not.toBeNull();
+    expect(container.querySelector(".canvas-well-halo")).not.toBeNull();
+    expect(container.querySelectorAll(".canvas-well-ring")).toHaveLength(2);
 
-    const id = gradient?.getAttribute("id") ?? "";
-    expect(id.length).toBeGreaterThan(0);
-
-    const filledCircle = Array.from(container.querySelectorAll("circle")).find((circle) =>
-      circle.getAttribute("fill")?.startsWith("url(#"),
-    );
-    expect(filledCircle?.getAttribute("fill")).toBe(`url(#${id})`);
+    const core = container.querySelector(".canvas-well-core");
+    expect(core).not.toBeNull();
+    expect(core?.getAttribute("r")).toBe("20");
   });
 
-  it("gives each instance a unique gradient id so multiple wells do not collide", () => {
-    // Both HubNode and SessionNode render a WellCircle, so a populated canvas
-    // mounts several at once. A hardcoded gradient id would produce duplicate
-    // DOM ids, and url(#id) would resolve every well to the first definition.
-    const { container } = render(
-      <svg>
-        <title>canvas</title>
-        <WellCircle radius={20} />
-        <WellCircle radius={20} isActive />
-        <WellCircle radius={20} pulse />
-      </svg>,
-    );
+  it("applies the caller's core color and opacity", () => {
+    const { container } = renderWell({ radius: 16, coreColor: "#f59e0b", coreOpacity: 0.8 });
+    const core = container.querySelector(".canvas-well-core");
+    expect(core?.getAttribute("fill")).toBe("#f59e0b");
+    expect(core?.getAttribute("opacity")).toBe("0.8");
+  });
 
-    const ids = Array.from(container.querySelectorAll("radialGradient")).map((gradient) =>
-      gradient.getAttribute("id"),
-    );
-    expect(ids).toHaveLength(3);
-    expect(ids.every((id) => Boolean(id))).toBe(true);
-    expect(new Set(ids).size).toBe(3);
+  it("merges an extra core class name when provided", () => {
+    const { container } = renderWell({
+      radius: 16,
+      coreColor: "#161616",
+      coreClassName: "canvas-well-core--live",
+    });
+    expect(
+      container.querySelector(".canvas-well-core")?.classList.contains("canvas-well-core--live"),
+    ).toBe(true);
+  });
 
-    // Every gradient-filled circle must point at an id that actually exists.
-    const referencedIds = Array.from(container.querySelectorAll("circle"))
-      .map((circle) => circle.getAttribute("fill"))
-      .filter((fill): fill is string => Boolean(fill?.startsWith("url(#")))
-      .map((fill) => fill.slice(5, -1));
-    for (const referencedId of referencedIds) {
-      expect(ids).toContain(referencedId);
-    }
+  it("uses caller-provided ring and halo colors", () => {
+    const { container } = renderWell({
+      radius: 16,
+      coreColor: "#161616",
+      ringColor: "#123456",
+      haloColor: "#654321",
+    });
+    expect(container.querySelector(".canvas-well-halo")?.getAttribute("fill")).toBe("#654321");
+    expect(container.querySelector(".canvas-well-ring--outer")?.getAttribute("stroke")).toBe(
+      "#123456",
+    );
   });
 });
