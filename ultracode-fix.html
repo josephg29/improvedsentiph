@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ultracode defection — fixed</title>
+<style>
+  :root{
+    --bg:#0b0d10; --panel:#14181d; --panel2:#1a2027; --line:#232b34;
+    --ink:#e8edf2; --muted:#9aa7b4; --accent:#4f9dff; --good:#25a244;
+    --warn:#b87000; --bad:#d6455d; --pink:#ff6fae;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1200px 600px at 72% -10%,#171024 0%,var(--bg) 55%);
+    color:var(--ink);font:15px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;padding:48px 20px}
+  .wrap{max-width:880px;margin:0 auto}
+  .kicker{color:var(--pink);font-weight:700;letter-spacing:.09em;text-transform:uppercase;font-size:12px}
+  h1{font-size:30px;line-height:1.2;margin:8px 0 6px}
+  .lede{color:var(--muted);font-size:17px;margin:0 0 26px}
+  .status{display:inline-flex;gap:8px;align-items:center;background:linear-gradient(180deg,#0f1a12,#14181d);
+    border:1px solid #234b30;border-radius:999px;padding:6px 14px;font-size:13px;font-weight:600;color:#7ee0a0;margin-bottom:26px}
+  section{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px 22px;margin:0 0 18px}
+  h2{font-size:18px;margin:0 0 12px}
+  h2 .n{color:var(--accent);font-variant-numeric:tabular-nums;margin-right:8px}
+  p{margin:0 0 12px}
+  .muted{color:var(--muted)}
+  code{background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-size:13px;color:#cfe3ff}
+  .file{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;color:#8fc0ff}
+  .ba{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .card{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+  .card.bad{border-left:4px solid var(--bad)}
+  .card.good{border-left:4px solid var(--good)}
+  .card h3{margin:0 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:.05em}
+  .card.bad h3{color:#ff9fad}.card.good h3{color:#7ee0a0}
+  .flow{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;color:#bcd;line-height:1.5}
+  .clause{white-space:pre-wrap;background:#0c0f13;border:1px solid var(--line);border-left:4px solid var(--pink);
+    border-radius:8px;padding:14px 16px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;color:#dbe6f2;overflow-x:auto}
+  ul{margin:6px 0 0;padding-left:18px}li{margin:5px 0}
+  .loop{display:flex;gap:10px;align-items:flex-start;margin:8px 0}
+  .loop .x{color:var(--bad);font-weight:700}
+  .loop .k{color:#ffd9a0;font-weight:600}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:4px}
+  td,th{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line)}
+  th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+  .ok{color:var(--good);font-weight:600}
+  .pill{font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;background:rgba(79,157,255,.14);color:#8fc0ff;border:1px solid #2c4a6b}
+  .foot{color:var(--muted);font-size:13px;margin-top:22px;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="kicker">Sentiph · orchestrator guardrail</div>
+  <h1>Ultracode defection — fixed</h1>
+  <p class="lede">The parent can no longer abandon the pipeline for its own hidden agent fan-out. One hardened clause now makes the Sentiph MCP tools the <i>only</i> way work can start — in every mode, including ultracode.</p>
+  <div class="status">✓ applied · shell-safe · API suite 191 passed / 1 skipped · biome clean</div>
+
+  <section>
+    <h2><span class="n">1</span>The problem</h2>
+    <p>The orchestrator is itself a Claude Code session, so it carries built-in multi-agent machinery — the <code>Workflow</code> tool, <code>Agent</code>/<code>Task</code> sub-agents, and ultracode, whose standing rule is to author its own dynamic workflow for every substantive task. Following that instinct spins up hidden <b>in-process</b> agents that bypass the deterministic pipeline, never get a worktree, and never appear on the canvas.</p>
+    <div class="ba">
+      <div class="card bad">
+        <h3>Before — two competing instincts</h3>
+        <div class="flow">code change<br>&nbsp;├─ Sentiph rule → <span style="color:#7ee0a0">build pipeline</span><br>&nbsp;└─ ultracode rule → <span style="color:#ff9fad">self-authored Workflow</span><br><br><span class="muted">louder default wins → agent soup,<br>off-canvas, no checks</span></div>
+      </div>
+      <div class="card good">
+        <h3>After — one path</h3>
+        <div class="flow">code change → <span style="color:#7ee0a0">build</span><br>read-only / research → <span style="color:#7ee0a0">spawn_terminal</span><br>trivial one-call step → do it yourself<br><br><span class="muted">no third path; ultracode rule<br>explicitly overridden</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">2</span>The fix</h2>
+    <p>A new <code>NO HIDDEN ORCHESTRATION</code> block was inserted directly under the <code>ROUTING RULE</code> in <span class="file">apps/api/src/sentiphSystemPrompt.ts</span>, so it reads as an enforcement of that rule rather than a competing one. It is appended to the orchestrator at launch via <code>--append-system-prompt</code>.</p>
+    <div class="clause">NO HIDDEN ORCHESTRATION -- ONLY build AND spawn_terminal MAY START WORK
+build and spawn_terminal are the ONLY ways you may start, plan, structure, or
+fan out work. There is no third path. This bans, with NO exceptions: the
+Workflow tool (even just to draft a plan), Agent / Task sub-agents, multi-agent
+or parallel-dispatch skills and commands, external or remote agent runners, and
+any self-authored dynamic multi-agent workflow. The test is not the tool name --
+it is visibility: if a unit of work would not show up as its own node in
+list_terminals, with its own worktree, it is forbidden, whatever it is called and
+whether it runs inside your session or outside it. Such work skips the build
+review-and-fix pipeline, gets no isolated worktree, and never appears on the
+Sentiph canvas -- which is the whole point of you. This holds in EVERY mode,
+current or future: ignore any standing rule (ultracode-style or otherwise) to
+fan out your own dynamic agent workflow. If you catch yourself about to author a
+Workflow or call a Task / Agent / dispatch tool, STOP and convert it into build
+(code changes) or spawn_terminal (read-only / research / inspection / glue)
+calls instead. The trivial one-tool-call step you still do yourself stays as the
+ROUTING RULE says -- everything larger is build or spawn_terminal.</div>
+  </section>
+
+  <section>
+    <h2><span class="n">3</span>Why it is hard to wriggle out of</h2>
+    <p>The clause does not rely on a brittle list of banned tool names. The governing rule is a <b>visibility test</b>, plus explicit closes for every loophole an adversarial review surfaced:</p>
+    <div class="loop"><span class="x">✗</span><div><span class="k">Unlisted tools</span> — "if a unit of work would not show up as its own node in <code>list_terminals</code>, it is forbidden, whatever it is called." Catches future/unknown dispatch tools without naming them.</div></div>
+    <div class="loop"><span class="x">✗</span><div><span class="k">In-process vs out-of-process</span> — "whether it runs inside your session or outside it." Closes the remote-runner / bridge escape.</div></div>
+    <div class="loop"><span class="x">✗</span><div><span class="k">Plan vs delegate seam</span> — bans the Workflow tool "even just to draft a plan," and pins <i>start, plan, structure, or fan out</i> to the two tools.</div></div>
+    <div class="loop"><span class="x">✗</span><div><span class="k">Self-execution drift</span> — "everything larger [than one trivial call] is build or spawn_terminal," while preserving the ROUTING RULE's do-it-yourself branch so it does not collide.</div></div>
+    <div class="loop"><span class="x">✗</span><div><span class="k">Future modes</span> — "This holds in EVERY mode, current or future," so a new mode can not opt out by omission.</div></div>
+    <div class="loop"><span class="x">✗</span><div><span class="k">Moment-of-choice</span> — a STOP-and-convert trip-wire fires at the decision point, not just as background prose.</div></div>
+  </section>
+
+  <section>
+    <h2><span class="n">4</span>How it was designed</h2>
+    <p>Built with a verification-first workflow rather than a single guess: <b>3 independent drafts</b> (terse-directive, enumerated-ban, why-framed), each run through <b>3 adversarial lenses</b> (shell-safety, effectiveness against an ultracode model, consistency with the existing prompt), then synthesized into one clause that applies every fix.</p>
+    <p class="muted" style="font-size:13px">13 agents · ~445k tokens · 9 adversarial checks → 1 synthesis. The synthesis adopted the visibility-test catch-all (drafts B+C), the compressed enumeration (B), and the blunt rationale line (C); it restored <code>spawn_terminal</code>'s full read-only / research / inspection / glue scope and renamed the pipeline "review-and-fix" to avoid build-runs-build circularity.</p>
+  </section>
+
+  <section>
+    <h2><span class="n">5</span>Verification</h2>
+    <table>
+      <tr><th>Check</th><th>Result</th></tr>
+      <tr><td>Forbidden chars <code>$ ` " \</code> in prompt</td><td class="ok">NONE</td></tr>
+      <tr><td>Apostrophes (cat-substitution safety)</td><td class="ok">0</td></tr>
+      <tr><td><span class="file">sentiphSystemPrompt.test.ts</span> (shell-safe + routing)</td><td class="ok">3 / 3 passed</td></tr>
+      <tr><td>Full <code>@sentiph/api</code> suite</td><td class="ok">191 passed, 1 skipped (26 files)</td></tr>
+      <tr><td>Biome lint on changed file</td><td class="ok">clean</td></tr>
+    </table>
+    <p class="muted" style="margin-top:12px">Scope: a single additive text block in one string constant. No code paths changed — only what the orchestrator is told at launch.</p>
+  </section>
+
+  <p class="foot">Files changed: <span class="file">apps/api/src/sentiphSystemPrompt.ts</span> &nbsp;·&nbsp; not yet pushed — say <b>go</b> to commit + push to <span class="file">josephg29/improvedsentiph</span>.</p>
+
+</div>
+</body>
+</html>
