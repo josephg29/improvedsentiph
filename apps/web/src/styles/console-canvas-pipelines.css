@@ -499,3 +499,20 @@
 .canvas-node--build {
   user-select: none;
 }
+
+/* ── Pipeline strip (ant-farm stage visualization) ─────────────── */
+
+.pipeline-strip {
+  pointer-events: none;
+}
+
+/* Pulsing halo around the running stage node */
+.pipeline-stage-pulse {
+  animation: pipeline-stage-halo 1.2s ease-in-out infinite;
+  transform-origin: inherit;
+}
+
+@keyframes pipeline-stage-halo {
+  0%, 100% { opacity: 0.1; r: 7; }
+  50% { opacity: 0.35; r: 10; }
+}

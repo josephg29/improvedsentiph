@@ -18,4 +18,5 @@ export type CreateApiServerOptions = {
   scanUsageHeatmap?: (scope: "all" | "project") => Promise<UsageChartResponse>;
   invalidateClaudeUsageCache?: () => void;
   allowRemoteAccess?: boolean;
+  bearerToken?: string;
 };

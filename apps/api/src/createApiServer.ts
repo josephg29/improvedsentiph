@@ -33,6 +33,7 @@ export const createApiServer = ({
   scanUsageHeatmap,
   invalidateClaudeUsageCache = invalidateUsageCacheDefault,
   allowRemoteAccess = false,
+  bearerToken,
 }: CreateApiServerOptions = {}) => {
   const resolvedWorkspaceCwd = workspaceCwd ?? process.cwd();
   // State lives in ~/.sentiph/projects/<name>/ when provided, else falls back to <project>/.sentiph/
@@ -125,6 +126,7 @@ export const createApiServer = ({
     scanUsageHeatmap: scanUsageHeatmapWithDefault,
     invalidateClaudeUsageCache,
     allowRemoteAccess,
+    bearerToken,
   });
 
   const server = createServer(requestHandler);
@@ -134,6 +136,7 @@ export const createApiServer = ({
     createUpgradeHandler({
       runtime,
       allowRemoteAccess,
+      bearerToken,
     }),
   );
 

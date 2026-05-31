@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
-  GitBranch,
   Maximize,
   Pause,
   Play,
@@ -9,7 +8,7 @@ import {
   Terminal as TerminalIcon,
   Trash2,
 } from "lucide-react";
-import type { GraphNode } from "../app/canvas/types";
+import type { GraphNode, PipelineStageNode } from "../app/canvas/types";
 import { useAgentRuntimeStates } from "../app/hooks/useAgentRuntimeStates";
 import { type BuildRunInput, HUB_ID, useCanvasGraphData } from "../app/hooks/useCanvasGraphData";
 import { useCanvasTransform } from "../app/hooks/useCanvasTransform";
@@ -21,9 +20,11 @@ import {
   createTerminalRuntimeStateStore,
 } from "../app/terminalRuntimeStateStore";
 import type { TerminalView } from "../app/types";
+import type { Run, RunStatus } from "@sentiph/core";
 import { DeleteAgentDialog } from "./DeleteAgentDialog";
 import { BuildNode } from "./canvas/BuildNode";
 import { CanvasTerminalColumn } from "./canvas/CanvasTerminalColumn";
+import { type CreateTerminalOptions, CreateTerminalDialog } from "./canvas/CreateTerminalDialog";
 import { DeleteAllTerminalsDialog } from "./canvas/DeleteAllTerminalsDialog";
 import { HubNode } from "./canvas/HubNode";
 import { SessionNode } from "./canvas/SessionNode";
@@ -40,6 +41,10 @@ type ContextMenuState =
       workspaceMode?: string;
     };
 
+type CreateTerminalDialogState = {
+  open: boolean;
+};
+
 type CanvasPrimaryViewProps = {
   columns: TerminalView;
   runtimeStateStore?: TerminalRuntimeStateStore;
@@ -51,6 +56,7 @@ type CanvasPrimaryViewProps = {
   onCanvasTerminalsPanelWidthChange?: (width: number | null) => void;
   onCreateTerminal?: () => Promise<string | undefined> | undefined;
   onCreateWorktreeTerminal?: () => Promise<string | undefined> | undefined;
+  onCreateTerminalWithOptions?: (opts: CreateTerminalOptions) => Promise<string | undefined>;
   onCloseActiveSession?: (terminalId: string, terminalName: string, workspaceMode?: string) => void;
   onDeleteActiveSession?: (
     terminalId: string,
@@ -64,6 +70,75 @@ type CanvasPrimaryViewProps = {
   onTerminalRenamed?: ((terminalId: string, agentName: string) => void) | undefined;
   onTerminalActivity?: ((terminalId: string) => void) | undefined;
   onRefreshColumns?: () => Promise<void> | void;
+};
+
+const derivePipelineStages = (run: Run): PipelineStageNode[] => {
+  const stages: PipelineStageNode[] = [];
+  const { outcomes, status } = run;
+
+  // Group outcomes by role in order of first appearance.
+  const seen = new Map<string, { role: string; count: number }>();
+  for (const o of outcomes) {
+    const key = `${o.stageId}-${o.index}`;
+    if (!seen.has(key)) {
+      seen.set(key, { role: o.stageId, count: o.index });
+    }
+  }
+
+  const addStage = (stageId: string, role: "build" | "check" | "fix", index: number, state: PipelineStageNode["state"]) => {
+    stages.push({ stageId: `${stageId}-${index}`, role, label: roleLabel(role, index), state, index });
+  };
+
+  const roleLabel = (role: "build" | "check" | "fix", index: number): string => {
+    if (role === "build") return "BUILD";
+    if (role === "check") return `CHK${index > 0 ? ` ${index + 1}` : ""}`;
+    return `FIX${index > 0 ? ` ${index + 1}` : ""}`;
+  };
+
+  const outcomeStateFor = (stageId: string, index: number): PipelineStageNode["state"] => {
+    const match = outcomes.find((o) => o.stageId === stageId && o.index === index);
+    if (!match) return "pending";
+    return match.ok ? "passed" : "failed";
+  };
+
+  // Determine the running role from status.
+  const runningRole: "build" | "check" | "fix" | null =
+    status === "building" ? "build"
+    : status === "checking" ? "check"
+    : status === "fixing" ? "fix"
+    : null;
+
+  // Build stages: build first.
+  const buildOutcome = outcomes.find((o) => o.stageId === "build");
+  const buildState: PipelineStageNode["state"] =
+    buildOutcome ? (buildOutcome.ok ? "passed" : "failed")
+    : runningRole === "build" ? "running"
+    : "pending";
+  addStage("build", "build", 0, buildState);
+
+  // Check and fix rounds from outcomes.
+  const checkOutcomes = outcomes.filter((o) => o.stageId === "check");
+  const fixOutcomes = outcomes.filter((o) => o.stageId === "fix");
+  const maxCheckIndex = checkOutcomes.length > 0 ? Math.max(...checkOutcomes.map((o) => o.index)) : -1;
+  const maxFixIndex = fixOutcomes.length > 0 ? Math.max(...fixOutcomes.map((o) => o.index)) : -1;
+
+  // Render check stages from outcomes, then current running check if applicable.
+  for (let i = 0; i <= maxCheckIndex; i++) {
+    addStage("check", "check", i, outcomeStateFor("check", i));
+  }
+  if (runningRole === "check") {
+    addStage("check", "check", maxCheckIndex + 1, "running");
+  }
+
+  // Fix stages.
+  for (let i = 0; i <= maxFixIndex; i++) {
+    addStage("fix", "fix", i, outcomeStateFor("fix", i));
+  }
+  if (runningRole === "fix") {
+    addStage("fix", "fix", maxFixIndex + 1, "running");
+  }
+
+  return stages;
 };
 
 const CLICK_THRESHOLD = 5;
@@ -171,6 +246,7 @@ export const CanvasPrimaryView = ({
   onCanvasTerminalsPanelWidthChange,
   onCreateTerminal,
   onCreateWorktreeTerminal,
+  onCreateTerminalWithOptions,
   onCloseActiveSession,
   onDeleteActiveSession,
   pendingDeleteTerminal,
@@ -188,11 +264,36 @@ export const CanvasPrimaryView = ({
   const runtimeStateStore = providedRuntimeStateStore ?? runtimeStateStoreRef.current;
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [isDeleteAllDialogOpen, setIsDeleteAllDialogOpen] = useState(false);
+  const [createTerminalDialog, setCreateTerminalDialog] = useState<CreateTerminalDialogState | null>(null);
   const [openTerminals, setOpenTerminals] = useState<Map<string, GraphNode>>(new Map());
   const [dragNodeId, setDragNodeId] = useState<string | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
   const [terminalsPanelWidth, setTerminalsPanelWidth] = useState<number | null>(null);
   const [pendingOpenAgentId, setPendingOpenAgentId] = useState<string | null>(null);
+  const createTerminalCallbackRef = useRef<((opts: CreateTerminalOptions) => void) | null>(null);
+
+  const openCreateTerminalDialog = useCallback(
+    (onCreate: (opts: CreateTerminalOptions) => void) => {
+      createTerminalCallbackRef.current = onCreate;
+      setCreateTerminalDialog({ open: true });
+    },
+    [],
+  );
+
+  const handleCreateTerminalConfirm = useCallback(
+    (opts: CreateTerminalOptions) => {
+      setCreateTerminalDialog(null);
+      const cb = createTerminalCallbackRef.current;
+      createTerminalCallbackRef.current = null;
+      cb?.(opts);
+    },
+    [],
+  );
+
+  const handleCreateTerminalCancel = useCallback(() => {
+    setCreateTerminalDialog(null);
+    createTerminalCallbackRef.current = null;
+  }, []);
   const [hideIdleTerminals, setHideIdleTerminals] = useState(false);
   const hasHydratedTerminals = useRef(false);
   const lastHandledCreatedTerminalIdRef = useRef<string | null>(null);
@@ -207,16 +308,20 @@ export const CanvasPrimaryView = ({
   const agentRuntimeStates = useAgentRuntimeStates(runtimeStateStore, columns);
 
   // Pipeline builds the orchestrator has delegated, rendered as worker nodes.
-  const { runs, approveRun, rejectRun, cancelRun } = usePipelineRuns();
+  const { runs, runDetails, approveRun, rejectRun, cancelRun } = usePipelineRuns();
   const buildRunInputs = useMemo<BuildRunInput[]>(
     () =>
-      runs.map((run) => ({
-        runId: run.runId,
-        status: run.status,
-        task: run.task,
-        ...(run.parentTerminalId ? { parentTerminalId: run.parentTerminalId } : {}),
-      })),
-    [runs],
+      runs.map((run) => {
+        const detail: Run | undefined = runDetails[run.runId];
+        return {
+          runId: run.runId,
+          status: run.status,
+          task: run.task,
+          ...(run.parentTerminalId ? { parentTerminalId: run.parentTerminalId } : {}),
+          ...(detail ? { pipelineStages: derivePipelineStages(detail) } : {}),
+        };
+      }),
+    [runs, runDetails],
   );
 
   const {
@@ -454,12 +559,18 @@ export const CanvasPrimaryView = ({
           }
           return;
         }
-        const result = onCreateTerminal?.();
-        if (result && typeof result.then === "function") {
-          void result.then((agentId) => {
-            if (agentId) setPendingOpenAgentId(agentId);
-          });
-        }
+        openCreateTerminalDialog((opts) => {
+          const result = onCreateTerminalWithOptions
+            ? onCreateTerminalWithOptions(opts)
+            : opts.workspaceMode === "worktree"
+              ? onCreateWorktreeTerminal?.()
+              : onCreateTerminal?.();
+          if (result && typeof result.then === "function") {
+            void result.then((agentId) => {
+              if (agentId) setPendingOpenAgentId(agentId);
+            });
+          }
+        });
         return;
       }
 
@@ -938,36 +1049,25 @@ export const CanvasPrimaryView = ({
           <button
             type="button"
             className="canvas-toolbar-btn"
-            onClick={() => {
-              const result = onCreateTerminal?.();
-              if (result && typeof result.then === "function") {
-                void result.then((agentId) => {
-                  if (agentId) setPendingOpenAgentId(agentId);
-                });
-              }
-            }}
+            onClick={() =>
+              openCreateTerminalDialog((opts) => {
+                const result = onCreateTerminalWithOptions
+                  ? onCreateTerminalWithOptions(opts)
+                  : opts.workspaceMode === "worktree"
+                    ? onCreateWorktreeTerminal?.()
+                    : onCreateTerminal?.();
+                if (result && typeof result.then === "function") {
+                  void result.then((agentId) => {
+                    if (agentId) setPendingOpenAgentId(agentId);
+                  });
+                }
+              })
+            }
           >
             <span className="canvas-toolbar-icon">
               <TerminalIcon size={14} />
             </span>
-            <span className="canvas-toolbar-label">Terminal</span>
-          </button>
-          <button
-            type="button"
-            className="canvas-toolbar-btn"
-            onClick={() => {
-              const result = onCreateWorktreeTerminal?.();
-              if (result && typeof result.then === "function") {
-                void result.then((agentId) => {
-                  if (agentId) setPendingOpenAgentId(agentId);
-                });
-              }
-            }}
-          >
-            <span className="canvas-toolbar-icon">
-              <GitBranch size={14} />
-            </span>
-            <span className="canvas-toolbar-label">Worktree</span>
+            <span className="canvas-toolbar-label">New Agent</span>
           </button>
           <div className="canvas-toolbar-separator" />
           <button type="button" className="canvas-toolbar-btn" onClick={handleFitView}>
@@ -1109,36 +1209,24 @@ export const CanvasPrimaryView = ({
                   className="canvas-context-menu-item"
                   onClick={() => {
                     setContextMenu(null);
-                    const result = onCreateTerminal?.();
-                    if (result && typeof result.then === "function") {
-                      void result.then((agentId) => {
-                        if (agentId) setPendingOpenAgentId(agentId);
-                      });
-                    }
+                    openCreateTerminalDialog((opts) => {
+                      const result = onCreateTerminalWithOptions
+                        ? onCreateTerminalWithOptions(opts)
+                        : opts.workspaceMode === "worktree"
+                          ? onCreateWorktreeTerminal?.()
+                          : onCreateTerminal?.();
+                      if (result && typeof result.then === "function") {
+                        void result.then((agentId) => {
+                          if (agentId) setPendingOpenAgentId(agentId);
+                        });
+                      }
+                    });
                   }}
                 >
                   <span className="canvas-context-menu-icon">
                     <TerminalIcon size={14} />
                   </span>
-                  New Terminal
-                </button>
-                <button
-                  type="button"
-                  className="canvas-context-menu-item"
-                  onClick={() => {
-                    setContextMenu(null);
-                    const result = onCreateWorktreeTerminal?.();
-                    if (result && typeof result.then === "function") {
-                      void result.then((agentId) => {
-                        if (agentId) setPendingOpenAgentId(agentId);
-                      });
-                    }
-                  }}
-                >
-                  <span className="canvas-context-menu-icon">
-                    <GitBranch size={14} />
-                  </span>
-                  New Worktree Terminal
+                  New Agent
                 </button>
               </>
             )}
@@ -1192,6 +1280,13 @@ export const CanvasPrimaryView = ({
             }}
           />
         </div>
+      )}
+
+      {createTerminalDialog?.open && (
+        <CreateTerminalDialog
+          onConfirm={handleCreateTerminalConfirm}
+          onCancel={handleCreateTerminalCancel}
+        />
       )}
     </section>
   );

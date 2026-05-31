@@ -3,7 +3,7 @@ import type { Dispatch, SetStateAction } from "react";
 
 import { buildUiStateUrl } from "../../runtime/runtimeEndpoints";
 import type { PrimaryNavIndex } from "../constants";
-import { MIN_SIDEBAR_WIDTH, PRIMARY_NAV_ITEMS, UI_STATE_SAVE_DEBOUNCE_MS } from "../constants";
+import { MIN_SIDEBAR_WIDTH, PRIMARY_NAV_MAX, UI_STATE_SAVE_DEBOUNCE_MS } from "../constants";
 import {
   DEFAULT_TERMINAL_COMPLETION_SOUND,
   type TerminalCompletionSoundId,
@@ -307,7 +307,7 @@ export const usePersistedUiState = ({
         activePrimaryNav:
           snapshot.activePrimaryNav !== undefined &&
           snapshot.activePrimaryNav >= 1 &&
-          snapshot.activePrimaryNav <= PRIMARY_NAV_ITEMS.length
+          snapshot.activePrimaryNav <= PRIMARY_NAV_MAX
             ? (snapshot.activePrimaryNav as PrimaryNavIndex)
             : DEFAULT_ACTIVE_PRIMARY_NAV,
         isAgentsSidebarVisible:
@@ -338,7 +338,7 @@ export const usePersistedUiState = ({
       if (
         snapshot.activePrimaryNav !== undefined &&
         snapshot.activePrimaryNav >= 1 &&
-        snapshot.activePrimaryNav <= PRIMARY_NAV_ITEMS.length
+        snapshot.activePrimaryNav <= PRIMARY_NAV_MAX
       ) {
         setActivePrimaryNav(snapshot.activePrimaryNav as PrimaryNavIndex);
       }

@@ -13,10 +13,10 @@ type PrimaryViewRouterProps = {
 };
 
 // The Agents canvas (1) stays mounted behind the active view so terminal
-// WebSocket/xterm instances survive nav switches; Activity (3) and Settings (8)
-// render on top when selected. Pipeline builds render as worker nodes on the
-// canvas itself (no separate tab, no overlay).
-const OVERLAY_NAVS = new Set<PrimaryNavIndex>([3, 8]);
+// WebSocket/xterm instances survive nav switches; Activity (3), Code Intel (4),
+// and Settings (8) render on top when selected. Pipeline builds render as worker
+// nodes on the canvas itself (no separate tab, no overlay).
+const OVERLAY_NAVS = new Set<PrimaryNavIndex>([3, 4, 8]);
 const isCanvasNav = (nav: PrimaryNavIndex) => !OVERLAY_NAVS.has(nav);
 
 export const PrimaryViewRouter = ({
@@ -37,6 +37,10 @@ export const PrimaryViewRouter = ({
       </div>
 
       {activePrimaryNav === 3 && <ActivityPrimaryView {...activityPrimaryViewProps} />}
+
+      {activePrimaryNav === 4 && (
+        <section className="code-intel-view" aria-label="Code Intel primary view" />
+      )}
 
       {activePrimaryNav === 8 && <SettingsPrimaryView {...settingsPrimaryViewProps} />}
     </div>

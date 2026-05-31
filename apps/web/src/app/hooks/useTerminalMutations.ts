@@ -31,6 +31,8 @@ type UseTerminalMutationsResult = {
     workspaceMode: TerminalWorkspaceMode,
     agentProvider?: TerminalAgentProvider,
     agentId?: string,
+    model?: string,
+    effort?: string,
   ) => Promise<string | undefined>;
   requestDeleteTerminal: (
     terminalId: string,
@@ -118,6 +120,8 @@ export const useTerminalMutations = ({
       workspaceMode: TerminalWorkspaceMode,
       agentProvider?: TerminalAgentProvider,
       agentId?: string,
+      model?: string,
+      effort?: string,
     ) => {
       try {
         setIsCreatingTerminal(true);
@@ -132,6 +136,8 @@ export const useTerminalMutations = ({
             workspaceMode,
             agentProvider: agentProvider ?? "claude-code",
             ...(agentId ? { agentId } : {}),
+            ...(model ? { model } : {}),
+            ...(effort ? { effort } : {}),
           }),
         });
 

@@ -6,6 +6,7 @@ type RuntimeStatusStripProps = {
   claudeUsage: ClaudeUsageSnapshot | null;
   isRefreshingClaudeUsage?: boolean;
   onRefreshClaudeUsage?: () => void;
+  githubSparklinePoints?: string;
 };
 
 const pct = (value: number | null | undefined, loading?: boolean): string => {
@@ -112,6 +113,7 @@ export const RuntimeStatusStrip = ({
   claudeUsage,
   isRefreshingClaudeUsage = false,
   onRefreshClaudeUsage,
+  githubSparklinePoints,
 }: RuntimeStatusStripProps) => {
   const claudeUsageState = usageState(claudeUsage);
   const [showRefreshSpin, setShowRefreshSpin] = useState(false);
@@ -157,6 +159,16 @@ export const RuntimeStatusStrip = ({
         <span className="console-status-brand">sentiph</span>
         <span className="console-status-sub">open source · MIT</span>
       </div>
+      {githubSparklinePoints && (
+        <div className="console-status-sparkline">
+          <div className="console-status-sparkline-chart">
+            <svg viewBox="0 0 148 36" preserveAspectRatio="none">
+              <polyline points={githubSparklinePoints} />
+            </svg>
+          </div>
+          <span className="console-status-sparkline-label">COMMITS/DAY · LAST 30 DAYS</span>
+        </div>
+      )}
       <div className="console-status-claude-usage" aria-label="Claude usage limits">
         {onRefreshClaudeUsage && (
           <button

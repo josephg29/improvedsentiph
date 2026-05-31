@@ -1875,6 +1875,168 @@
   font-weight: 600;
 }
 
+/* ─── Create Terminal Dialog ─────────────────────────────────────────────────── */
+
+.create-terminal-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.create-terminal-dialog {
+  background: #1a1a2e;
+  border: 1px solid #2d2d4e;
+  border-radius: 10px;
+  padding: 1.5rem;
+  width: 420px;
+  max-width: calc(100vw - 2rem);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+
+.create-terminal-dialog__title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #e2e8f0;
+  margin: 0 0 1.25rem;
+  letter-spacing: -0.01em;
+}
+
+.create-terminal-dialog__field {
+  margin-bottom: 1.1rem;
+}
+
+.create-terminal-dialog__label {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #6b7280;
+  margin-bottom: 0.45rem;
+}
+
+.create-terminal-dialog__radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.create-terminal-dialog__radio {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid #2d2d4e;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+
+.create-terminal-dialog__radio input[type="radio"] {
+  margin-top: 0.1rem;
+  accent-color: #4f8ef7;
+  cursor: pointer;
+}
+
+.create-terminal-dialog__radio--selected {
+  border-color: #4f8ef7;
+  background: rgba(79, 142, 247, 0.07);
+}
+
+.create-terminal-dialog__radio-label {
+  font-size: 0.83rem;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.create-terminal-dialog__radio-desc {
+  font-size: 0.72rem;
+  color: #6b7280;
+  margin-left: auto;
+  padding-left: 0.5rem;
+}
+
+.create-terminal-dialog__select-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.create-terminal-dialog__select-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid #2d2d4e;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.12s, background 0.12s;
+}
+
+.create-terminal-dialog__select-option:hover {
+  border-color: #3d3d5e;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.create-terminal-dialog__select-option--selected {
+  border-color: #4f8ef7;
+  background: rgba(79, 142, 247, 0.07);
+}
+
+.create-terminal-dialog__select-name {
+  font-size: 0.83rem;
+  font-weight: 600;
+  color: #e2e8f0;
+  min-width: 56px;
+}
+
+.create-terminal-dialog__select-desc {
+  font-size: 0.72rem;
+  color: #6b7280;
+}
+
+.create-terminal-dialog__actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  margin-top: 1.4rem;
+}
+
+.create-terminal-dialog__btn {
+  padding: 0.45rem 1rem;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: opacity 0.12s;
+}
+
+.create-terminal-dialog__btn--cancel {
+  background: transparent;
+  border-color: #2d2d4e;
+  color: #9ca3af;
+}
+
+.create-terminal-dialog__btn--cancel:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.create-terminal-dialog__btn--confirm {
+  background: #4f8ef7;
+  color: #fff;
+}
+
+.create-terminal-dialog__btn--confirm:hover {
+  opacity: 0.88;
+}
+
 .git-actions-merge-pr,
 .git-actions-open-pr,
 .git-actions-cleanup {

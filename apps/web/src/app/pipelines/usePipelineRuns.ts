@@ -45,6 +45,7 @@ const parseRunUpdated = (data: string): Run | null => {
 
 export interface UsePipelineRuns {
   runs: RunListItem[];
+  runDetails: Record<string, Run>;
   selectedRunId: string | null;
   selectedRun: Run | null;
   isStarting: boolean;
@@ -226,6 +227,7 @@ export const usePipelineRuns = (): UsePipelineRuns => {
 
   return {
     runs,
+    runDetails: details,
     selectedRunId,
     selectedRun,
     isStarting,

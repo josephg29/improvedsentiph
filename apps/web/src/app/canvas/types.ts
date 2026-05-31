@@ -1,4 +1,14 @@
-import type { AgentRuntimeState, AgentState, AgentWorkspaceMode, RunStatus } from "@sentiph/core";
+import type { AgentRuntimeState, AgentState, AgentWorkspaceMode, RunStatus, StageRole } from "@sentiph/core";
+
+export type PipelineStageState = "pending" | "running" | "passed" | "failed";
+
+export type PipelineStageNode = {
+  stageId: string;
+  role: StageRole;
+  label: string;
+  state: PipelineStageState;
+  index: number;
+};
 
 export type GraphNode = {
   id: string;
@@ -21,6 +31,7 @@ export type GraphNode = {
   parentTerminalId?: string;
   runId?: string;
   runStatus?: RunStatus;
+  pipelineStages?: PipelineStageNode[];
 };
 
 export type GraphEdge = {

@@ -1,14 +1,80 @@
+import {
+  appendFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
+import { join } from "node:path";
 import { logVerbose } from "../logging";
 import type { ChannelMessage, PersistedTerminal, TerminalSession } from "./types";
+
+const CHANNELS_SUBDIR = "channels";
+
+const parseChannelMessage = (line: string): ChannelMessage | null => {
+  try {
+    return JSON.parse(line) as ChannelMessage;
+  } catch {
+    return null;
+  }
+};
+
+const loadChannelQueue = (channelsDir: string, terminalId: string): ChannelMessage[] => {
+  const filePath = join(channelsDir, `${terminalId}.jsonl`);
+  if (!existsSync(filePath)) return [];
+  try {
+    return readFileSync(filePath, "utf8")
+      .split("\n")
+      .filter(Boolean)
+      .map(parseChannelMessage)
+      .filter((m): m is ChannelMessage => m !== null);
+  } catch {
+    return [];
+  }
+};
+
+const persistChannelQueue = (channelsDir: string, terminalId: string, queue: ChannelMessage[]) => {
+  try {
+    const filePath = join(channelsDir, `${terminalId}.jsonl`);
+    writeFileSync(filePath, queue.map((m) => JSON.stringify(m)).join("\n") + "\n", "utf8");
+  } catch {
+    // Best-effort persistence — don't let write errors break delivery.
+  }
+};
 
 export const createChannelMessaging = (deps: {
   terminals: Map<string, PersistedTerminal>;
   sessions: Map<string, TerminalSession>;
   writeInput: (terminalId: string, data: string) => boolean;
+  stateDir?: string;
 }) => {
-  const { terminals, sessions, writeInput } = deps;
+  const { terminals, sessions, writeInput, stateDir } = deps;
+  const channelsDir = stateDir ? join(stateDir, "state", CHANNELS_SUBDIR) : null;
+  if (channelsDir) {
+    mkdirSync(channelsDir, { recursive: true });
+  }
+
+  // Restore queues from disk for all known terminals.
   const channelQueues = new Map<string, ChannelMessage[]>();
-  let channelMessageCounter = 0;
+  if (channelsDir) {
+    for (const terminalId of terminals.keys()) {
+      const stored = loadChannelQueue(channelsDir, terminalId);
+      if (stored.length > 0) {
+        channelQueues.set(terminalId, stored);
+      }
+    }
+  }
+
+  let channelMessageCounter = (() => {
+    let max = 0;
+    for (const queue of channelQueues.values()) {
+      for (const m of queue) {
+        const n = Number(m.messageId.replace("msg-", ""));
+        if (n > max) max = n;
+      }
+    }
+    return max;
+  })();
 
   const deliverChannelMessages = (terminalId: string): number => {
     const queue = channelQueues.get(terminalId);
@@ -38,6 +104,10 @@ export const createChannelMessaging = (deps: {
       m.delivered = true;
     }
 
+    if (channelsDir) {
+      persistChannelQueue(channelsDir, terminalId, queue);
+    }
+
     writeInput(terminalId, prompt);
     return undelivered.length;
   };
@@ -65,6 +135,18 @@ export const createChannelMessaging = (deps: {
       const queue = channelQueues.get(toTerminalId) ?? [];
       queue.push(message);
       channelQueues.set(toTerminalId, queue);
+
+      if (channelsDir) {
+        try {
+          appendFileSync(
+            join(channelsDir, `${toTerminalId}.jsonl`),
+            `${JSON.stringify(message)}\n`,
+            "utf8",
+          );
+        } catch {
+          // Best-effort.
+        }
+      }
 
       logVerbose(
         `[Channel] Queued message ${message.messageId} from=${fromTerminalId} to=${toTerminalId}`,

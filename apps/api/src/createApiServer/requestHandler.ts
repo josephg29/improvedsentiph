@@ -31,6 +31,7 @@ import {
   handleRunsCollectionRoute,
 } from "./runsRoutes";
 import {
+  checkBearerToken,
   getRequestCorsOrigin,
   isAllowedHostHeader,
   isAllowedOriginHeader,
@@ -82,6 +83,7 @@ type CreateApiRequestHandlerOptions = {
   scanUsageHeatmap: (scope: "all" | "project") => Promise<UsageChartResponse>;
   invalidateClaudeUsageCache: () => void;
   allowRemoteAccess: boolean;
+  bearerToken?: string;
 };
 
 const API_ROUTE_MAP: ReadonlyMap<string, readonly ApiRouteHandler[]> = new Map([
@@ -169,6 +171,7 @@ export const createApiRequestHandler = ({
   scanUsageHeatmap,
   invalidateClaudeUsageCache,
   allowRemoteAccess,
+  bearerToken,
 }: CreateApiRequestHandlerOptions) => {
   const resolvedWebDistDir = webDistDir && existsSync(webDistDir) ? webDistDir : null;
 
@@ -211,6 +214,15 @@ export const createApiRequestHandler = ({
       writeJson(response, 403, { error: "Origin not allowed." }, null);
       logRequest(request.method ?? "?", request.url ?? "/", 403, startTime);
       return;
+    }
+
+    if (allowRemoteAccess && bearerToken) {
+      const authHeader = readHeaderValue(request.headers.authorization);
+      if (request.method !== "OPTIONS" && !checkBearerToken(authHeader, bearerToken)) {
+        writeJson(response, 401, { error: "Unauthorized." }, corsOrigin);
+        logRequest(request.method ?? "?", request.url ?? "/", 401, startTime);
+        return;
+      }
     }
 
     try {

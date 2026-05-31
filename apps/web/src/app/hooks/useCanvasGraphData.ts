@@ -1,6 +1,6 @@
 import { useRef } from "react";
 
-import type { GraphEdge, GraphNode } from "../canvas/types";
+import type { GraphEdge, GraphNode, PipelineStageNode } from "../canvas/types";
 import type { TerminalView } from "../types";
 import type { AgentRuntimeStateInfo } from "./useAgentRuntimeStates";
 
@@ -56,6 +56,7 @@ export type BuildRunInput = {
   status: import("@sentiph/core").RunStatus;
   task: string;
   parentTerminalId?: string;
+  pipelineStages?: PipelineStageNode[];
 };
 
 const BUILD_NODE_RADIUS = 10;
@@ -173,6 +174,7 @@ export const useCanvasGraphData = ({
       runId: run.runId,
       runStatus: run.status,
       ...(run.parentTerminalId ? { parentTerminalId: run.parentTerminalId } : {}),
+      ...(run.pipelineStages ? { pipelineStages: run.pipelineStages } : {}),
     };
     nodes.push(buildNode);
     currentNodesById.set(runNodeId, buildNode);

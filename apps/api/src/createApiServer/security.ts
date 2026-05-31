@@ -4,7 +4,7 @@ export const withCors = (headers: Record<string, string>, corsOrigin: string | n
   const nextHeaders: Record<string, string> = {
     ...headers,
     "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
   };
 
   if (corsOrigin) {
@@ -55,6 +55,15 @@ export const readHeaderValue = (header: string | string[] | undefined): string |
 
   const trimmed = header.trim();
   return trimmed.length > 0 ? trimmed : undefined;
+};
+
+export const checkBearerToken = (
+  authHeader: string | undefined,
+  expectedToken: string,
+): boolean => {
+  if (!authHeader) return false;
+  const match = /^Bearer\s+(.+)$/i.exec(authHeader);
+  return match !== null && match[1] === expectedToken;
 };
 
 export const getRequestCorsOrigin = (origin: string | undefined, allowRemoteAccess: boolean) => {

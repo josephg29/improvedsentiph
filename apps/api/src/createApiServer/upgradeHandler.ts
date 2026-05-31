@@ -1,18 +1,20 @@
 import type { IncomingMessage } from "node:http";
 import type { Socket } from "node:net";
 
-import { isAllowedHostHeader, isAllowedOriginHeader, readHeaderValue } from "./security";
+import { checkBearerToken, isAllowedHostHeader, isAllowedOriginHeader, readHeaderValue } from "./security";
 
 type TerminalRuntime = ReturnType<typeof import("../terminalRuntime").createTerminalRuntime>;
 
 type CreateUpgradeHandlerOptions = {
   runtime: TerminalRuntime;
   allowRemoteAccess: boolean;
+  bearerToken?: string;
 };
 
 export const createUpgradeHandler = ({
   runtime,
   allowRemoteAccess,
+  bearerToken,
 }: CreateUpgradeHandlerOptions) => {
   return (request: IncomingMessage, socket: Socket, head: Buffer) => {
     const originHeader = readHeaderValue(request.headers.origin);
@@ -25,6 +27,14 @@ export const createUpgradeHandler = ({
     if (!isAllowedOriginHeader(originHeader, allowRemoteAccess)) {
       socket.destroy();
       return;
+    }
+
+    if (allowRemoteAccess && bearerToken) {
+      const authHeader = readHeaderValue(request.headers.authorization);
+      if (!checkBearerToken(authHeader, bearerToken)) {
+        socket.destroy();
+        return;
+      }
     }
 
     try {

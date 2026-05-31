@@ -23,6 +23,7 @@ import type { TerminalView } from "./app/types";
 import { ConsolePrimaryNav } from "./components/ConsolePrimaryNav";
 import { PrimaryViewRouter } from "./components/PrimaryViewRouter";
 import { RuntimeStatusStrip } from "./components/RuntimeStatusStrip";
+import { TelemetryTickerTape } from "./components/TelemetryTickerTape";
 import { HttpTerminalSnapshotReader } from "./runtime/HttpTerminalSnapshotReader";
 import {
   buildTerminalEventsSocketUrl,
@@ -56,6 +57,9 @@ export const App = () => {
     setActivePrimaryNav,
     applyHydratedUiState,
     isRuntimeStatusStripVisible,
+    isMonitorVisible,
+    setIsMonitorVisible,
+    isBottomTelemetryVisible,
     isUiStateHydrated,
     readUiState,
     setIsRuntimeStatusStripVisible,
@@ -244,6 +248,7 @@ export const App = () => {
 
   const {
     githubCommitCount30d,
+    sparklinePoints,
     githubOverviewGraphSeries,
     githubOverviewGraphPolylinePoints,
     githubOverviewHoverLabel,
@@ -280,6 +285,7 @@ export const App = () => {
           claudeUsage={claudeUsageSnapshot}
           isRefreshingClaudeUsage={isRefreshingClaudeUsage}
           onRefreshClaudeUsage={refreshClaudeUsage}
+          githubSparklinePoints={sparklinePoints}
         />
       )}
 
@@ -319,7 +325,9 @@ export const App = () => {
             }}
             settingsPrimaryViewProps={{
               isRuntimeStatusStripVisible,
+              isMonitorVisible,
               onRuntimeStatusStripVisibilityChange: setIsRuntimeStatusStripVisible,
+              onMonitorVisibilityChange: setIsMonitorVisible,
               onPreviewTerminalCompletionSound: playCompletionSoundPreview,
               onTerminalCompletionSoundChange: setTerminalCompletionSound,
               terminalCompletionSound,
@@ -338,6 +346,9 @@ export const App = () => {
               },
               onCreateWorktreeTerminal: async () => {
                 return await createTerminal("worktree", undefined, HUB_ID);
+              },
+              onCreateTerminalWithOptions: async ({ workspaceMode, model, effort }) => {
+                return await createTerminal(workspaceMode, undefined, HUB_ID, model, effort);
               },
               onCloseActiveSession: (terminalId, terminalName, workspaceMode) => {
                 requestDeleteTerminal(terminalId, terminalName, {
@@ -366,6 +377,8 @@ export const App = () => {
           />
         </div>
       </section>
+
+      {isBottomTelemetryVisible && <TelemetryTickerTape />}
     </div>
   );
 };
